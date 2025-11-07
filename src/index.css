@@ -1,0 +1,66 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --color-primary: #4a148c;
+    --color-secondary: #ffd700;
+    --color-background-light: #ffffff;
+    --color-background-dark: #10081c;
+    --color-surface-light: #f5f5f5;
+    --color-surface-dark: #1a1022;
+    --color-text-light: #333333;
+    --color-text-dark: #e0e0e0;
+    --color-text-light-muted: #666666;
+    --color-text-dark-muted: #bdbdbd;
+
+    --font-display: "Plus Jakarta Sans", sans-serif;
+
+    --radius-default: 0.5rem;
+    --radius-lg: 0.75rem;
+    --radius-xl: 1rem;
+    --radius-full: 9999px;
+  }
+
+  .dark {
+    --color-background-light: var(--color-background-dark);
+    --color-surface-light: var(--color-surface-dark);
+    --color-text-light: var(--color-text-dark);
+    --color-text-light-muted: var(--color-text-dark-muted);
+  }
+
+  body {
+    font-family: var(--font-display);
+    background-color: var(--color-background-light);
+    color: var(--color-text-light);
+  }
+}
+
+@layer utilities {
+  .bg-primary {
+    background-color: var(--color-primary);
+  }
+  .bg-secondary {
+    background-color: var(--color-secondary);
+  }
+  .bg-tertary {
+    background-color: var(--color-surface-light);
+  }
+  .text-primary {
+    color: var(--color-primary);
+  }
+  .text-secondary {
+    color: var(--color-secondary);
+  }
+  .text-muted {
+    color: var(--color-text-light);
+  }
+  .rounded-default {
+    border-radius: var(--radius-default);
+  }
+  .rounded-xl {
+    border-radius: var(--radius-xl);
+  }
+  .rounded-full {
+    border-radius: var(--radius-full);
+  }
+}
