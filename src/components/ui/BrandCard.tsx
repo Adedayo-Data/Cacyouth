@@ -9,7 +9,7 @@ interface BrandCardProps {
 
 const BrandCard = ({ icon, title, imgSrc, imgAlt }: BrandCardProps) => {
   return (
-    <div className="flex flex-col items-center justify-center p-6 bg-gray-100 rounded-xl text-center">
+    <div className="flex flex-col items-center justify-center p-6 bg-gray-100/50 rounded-xl text-center">
       <span className=" text-4xl mb-4 text-primary">
         {React.createElement(icon)}
       </span>

@@ -1,4 +1,4 @@
-import BrandCard from "../components/BrandCard";
+import BrandCard from "../ui/BrandCard.tsx";
 import { IoMdMusicalNote, IoIosSchool } from "react-icons/io";
 import { MdOutlineFastfood } from "react-icons/md";
 import { RiBankLine } from "react-icons/ri";

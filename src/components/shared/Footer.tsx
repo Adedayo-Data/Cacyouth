@@ -3,7 +3,7 @@ const Footer = () => {
    <div className='bg-purple-100 text-white '>
        <div className="mt-8 md:mt-0 md:order-1 py-5  flex md:flex-row flex-col items-center justify-between px-15 sm:space-y-1">
            <div className='text-center sm:space-y-2'>
-               <div className='relative left-1/4'>
+               <div className='relative left-1/4 md:left-0'>
                    <div className="size-15 text-gray-200 ml-4">
                        <svg
                            fill="none"
@@ -25,7 +25,7 @@ const Footer = () => {
                </div>
                <p>123 Faith Avenue, Revival City</p>
            </div>
-           <p className="mt-1 flex flex-col text-center">
+           <p className="mt-1 flex flex-col text-center md:text-left">
                <a
                    className="hover:text-secondary"
                    href="mailto:info@cacyofmedaiyese.org"

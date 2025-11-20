@@ -1,4 +1,4 @@
-import PartnerCard from "./PartnerCard.tsx";
+import PartnerCard from "../ui/PartnerCard.tsx";
 import {
   MdDiamond,
   MdWorkspacePremium,
@@ -57,28 +57,18 @@ const Partners = () => {
         const packTimeline = gsap.timeline({
             scrollTrigger: {
                 trigger: "#partners",
-                start: "top top",
+                start: 'top top',
+                end:'80% bottom',
                 scrub:true,
-                pin:true,
-
             }
-        })
-
-        packTimeline.from('#pack',{
-            opacity: 0,
-            yPercent: 100,
-            duration: 1,
-            ease: "power2.inOut",
-
         })
 
         packTimeline.from(".partner-card", {
             opacity: 0,
-            xPercent: 100,
-            duration: 0.8,
+            yPercent: 100,
+            duration: 0.5,
             ease: "power2.out",
             stagger: 0.3,
-
         });
     })
   return (
