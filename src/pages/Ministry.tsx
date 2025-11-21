@@ -1,9 +1,12 @@
+
 import { useGSAP } from "@gsap/react";
 import { SplitText } from "gsap/all";
 import gsap from "gsap";
+import { FaPray, FaBible, FaMusic } from "react-icons/fa";
 
 const Ministry = () => {
   useGSAP(() => {
+    // Hero Animation
     const heroSplit = new SplitText("#ministry-head", { type: "lines, chars" });
     heroSplit.chars.forEach((char) => char.classList.add("text-gradient"));
 
@@ -22,156 +25,176 @@ const Ministry = () => {
       delay: 1,
     });
 
-    const scriptureTimeline = gsap.timeline({
+    // Daily Inspiration Animation
+    gsap.from("#inspiration-card", {
       scrollTrigger: {
-        trigger: "#scripture-section",
-        start: "top center",
-        end: "bottom center",
+        trigger: "#inspiration-section",
+        start: "top 80%",
+        end: "bottom 20%",
         toggleActions: "play none none reverse",
+      },
+      y: 100,
+      opacity: 0,
+      duration: 1,
+      ease: "power3.out",
+    });
+
+    // Conference Animation
+    const conferenceTl = gsap.timeline({
+      scrollTrigger: {
+        trigger: "#conference-section",
+        start: "top 70%",
       },
     });
 
-    scriptureTimeline
-      .from("#scripture-img", {
+    conferenceTl
+      .from("#conference-title", {
+        y: 50,
         opacity: 0,
-        x: -100,
         duration: 0.8,
         ease: "power2.out",
       })
       .from(
-        "#scripture-text",
+        ".conference-feature",
         {
+          y: 30,
           opacity: 0,
-          x: 100,
-          duration: 0.8,
-          ease: "power2.out",
+          duration: 0.6,
+          stagger: 0.2,
+          ease: "back.out(1.7)",
         },
-        "-=0.6"
+        "-=0.4"
       );
-
-    const programsTimeline = gsap.timeline({
-      scrollTrigger: {
-        trigger: "#programs-section",
-        start: "top center",
-        end: "bottom center",
-        toggleActions: "play none none reverse",
-      },
-    });
-
-    programsTimeline.from(".program-card", {
-      opacity: 0,
-      y: 50,
-      duration: 0.6,
-      ease: "power2.out",
-      stagger: 0.2,
-    });
   });
 
   return (
-    <div>
-      {/* Hero Section */}
-      <section className="bg-[linear-gradient(rgba(26,16,34,0.7)_0%,rgba(74,20,140,0.5)_100%),url('/assets/back.png')] bg-cover bg-center bg-no-repeat w-full h-screen flex items-center justify-center px-4">
-        <div className="text-center text-white">
-          <div className="flex justify-center -mt-10 mb-10">
-            <p className="uppercase bg-black-light w-50 py-1 rounded-full border border-white/70 text-xs ">
-              Upcoming Event
-            </p>
+    <div className="bg-black-light text-white overflow-x-hidden">
+      {/* Section 1: Emergence Concert (Hero) */}
+      <section className="relative h-screen flex items-center justify-center overflow-hidden">
+        {/* Background with Overlay */}
+        <div className="absolute inset-0 z-0">
+          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-purple-900/40 to-black-light z-10"></div>
+          <img
+            src="/assets/4.jpg"
+            alt="Concert Crowd"
+            className="w-full h-full object-cover scale-105"
+          />
+        </div>
+
+        <div className="relative z-20 text-center px-4 max-w-5xl mx-auto">
+          <div className="inline-block mb-6 px-4 py-1 rounded-full border border-purple-500/50 bg-purple-900/30 backdrop-blur-sm">
+            <span className="text-purple-300 text-xs md:text-sm font-medium tracking-wider uppercase">
+              Upcoming Worship Experience
+            </span>
           </div>
           <h1
-            className="text-6xl font-black leading-tight tracking-tight lg:text-[80px] text-gradient"
+            className="text-5xl md:text-8xl lg:text-[100px] font-black leading-none tracking-tighter mb-8"
             id="ministry-head"
           >
-            Youth Concert
+            EMERGENCE
+            <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">
+              CONCERT
+            </span>
           </h1>
-          <p className="text-lg mt-6 max-w-2xl mx-auto" id="ministry-sub">
-            Join us for an unforgettable night of worship, music, and spiritual
-            renewal. Experience the power of faith through our upcoming youth
-            concert event.
+          <p
+            className="text-base md:text-2xl text-gray-300 max-w-3xl mx-auto leading-relaxed px-4"
+            id="ministry-sub"
+          >
+            A night where heaven touches earth. Join us for an electrifying
+            atmosphere of undiluted worship, prophetic sounds, and the rising of
+            a new generation of kingdom giants.
           </p>
         </div>
       </section>
 
-      {/* Scripture Section */}
+      {/* Section 2: Daily Inspiration */}
       <section
-        className="py-16 bg-gray-50 overflow-x-hidden"
-        id="scripture-section"
+        id="inspiration-section"
+        className="py-24 px-4 relative flex items-center justify-center min-h-[80vh]"
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-            <div id="scripture-img">
-              <img
-                src="/assets/back.png"
-                alt="Ministry"
-                className="w-full h-96 object-cover rounded-lg shadow-lg"
-              />
-            </div>
-            <div
-              id="scripture-text"
-              className="text-center md:text-left bg-purple-100 py-25 px-5 rounded-lg"
-            >
-              <h2 className="text-3xl font-bold text-primary mb-6">
-                Daily Inspiration
-              </h2>
-              <blockquote className="text-lg italic text-white/50 mb-4">
-                "For I know the plans I have for you," declares the Lord, "plans
-                to prosper you and not to harm you, plans to give you hope and a
-                future."
-              </blockquote>
-              <cite className="text-primary font-semibold">
-                - Jeremiah 29:11
-              </cite>
-            </div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-purple-900/20 via-black-light to-black-light z-0"></div>
+
+        <div
+          id="inspiration-card"
+          className="relative z-10 max-w-4xl w-full bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-10 md:p-16 text-center shadow-2xl transform hover:scale-[1.02] transition-transform duration-500"
+        >
+          <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-gradient-to-r from-purple-600 to-pink-600 w-20 h-20 rounded-full flex items-center justify-center shadow-lg shadow-purple-500/30">
+            <FaBible className="text-3xl text-white" />
           </div>
+
+          <h2 className="text-2xl md:text-3xl font-serif text-purple-300 mb-8 mt-6">
+            Daily Inspiration
+          </h2>
+
+          <blockquote className="text-3xl md:text-5xl font-bold leading-tight mb-8 text-white">
+            "For I know the plans I have for you," declares the Lord, "plans to
+            prosper you and not to harm you, plans to give you hope and a
+            future."
+          </blockquote>
+
+          <div className="w-20 h-1 bg-gradient-to-r from-purple-500 to-transparent mx-auto mb-6"></div>
+
+          <cite className="text-xl text-gray-400 not-italic font-medium">
+            — Jeremiah 29:11
+          </cite>
         </div>
       </section>
 
-      {/* Upcoming Programs */}
-      <section className="py-16 bg-black-light" id="programs-section">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold text-primary">
-              Upcoming Programs
+      {/* Section 3: Youth Conference */}
+      <section
+        id="conference-section"
+        className="py-24 px-4 relative bg-gradient-to-t from-purple-900/20 to-black-light"
+      >
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-20">
+            <h2
+              id="conference-title"
+              className="text-5xl md:text-7xl font-black mb-6 tracking-tight"
+            >
+              YOUTH <span className="text-purple-500">CONFERENCE</span>
             </h2>
-            <p className="mt-4 text-lg text-white">
-              Stay connected with our latest events and activities
+            <p className="text-xl text-gray-400 max-w-2xl mx-auto">
+              Three days of power, transformation, and encounter. Come and be
+              equipped for the mandate upon your life.
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <div className="program-card bg-white/70 p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
-              <h3 className="text-xl font-semibold text-black-light mb-3">
-                Prayer Meeting
-              </h3>
-              <p className="text-gray-600 mb-4">
-                Join us for our weekly prayer gathering every Wednesday at 7 PM.
-              </p>
-              <div className="text-sm text-gray-500">
-                <p>📅 Next: Dec 6, 2023</p>
-                <p>📍 Church Hall</p>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Feature 1: The Word */}
+            <div className="conference-feature group relative bg-white/5 border border-white/10 rounded-2xl p-8 hover:bg-white/10 transition-colors duration-300">
+              <div className="bg-blue-500/20 w-16 h-16 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                <FaBible className="text-3xl text-blue-400" />
               </div>
+              <h3 className="text-2xl font-bold mb-4">The Word</h3>
+              <p className="text-gray-400 leading-relaxed">
+                Deep exposition of scriptures to ground you in truth and unveil
+                mysteries for your rising.
+              </p>
             </div>
-            <div className="program-card bg-white/70 p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
-              <h3 className="text-xl font-semibold text-black-light mb-3">
-                Bible Study
-              </h3>
-              <p className="text-gray-600 mb-4">
-                Deep dive into God's word with our Saturday morning sessions.
-              </p>
-              <div className="text-sm text-gray-500">
-                <p>📅 Every Saturday</p>
-                <p>📍 Study Room</p>
+
+            {/* Feature 2: Prayer */}
+            <div className="conference-feature group relative bg-white/5 border border-white/10 rounded-2xl p-8 hover:bg-white/10 transition-colors duration-300">
+              <div className="bg-purple-500/20 w-16 h-16 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                <FaPray className="text-3xl text-purple-400" />
               </div>
+              <h3 className="text-2xl font-bold mb-4">Prayer</h3>
+              <p className="text-gray-400 leading-relaxed">
+                Intense sessions of intercession and spiritual warfare to break
+                limits and birth destinies.
+              </p>
             </div>
-            <div className="program-card bg-white/70 p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
-              <h3 className="text-xl font-semibold text-black-light mb-3">
-                Youth Retreat
-              </h3>
-              <p className="text-gray-600 mb-4">
-                Annual spiritual retreat for renewal and fellowship.
-              </p>
-              <div className="text-sm text-gray-500">
-                <p>📅 Feb 15-17, 2024</p>
-                <p>📍 Mountain Resort</p>
+
+            {/* Feature 3: Worship */}
+            <div className="conference-feature group relative bg-white/5 border border-white/10 rounded-2xl p-8 hover:bg-white/10 transition-colors duration-300">
+              <div className="bg-pink-500/20 w-16 h-16 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                <FaMusic className="text-3xl text-pink-400" />
               </div>
+              <h3 className="text-2xl font-bold mb-4">Worship</h3>
+              <p className="text-gray-400 leading-relaxed">
+                Ascend into the throne room through heart-rending worship and
+                prophetic sounds.
+              </p>
             </div>
           </div>
         </div>
