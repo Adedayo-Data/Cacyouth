@@ -2,7 +2,20 @@ import { useGSAP } from "@gsap/react";
 import { SplitText } from "gsap/all";
 import gsap from "gsap";
 
+import { useSearchParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+
 const Contact = () => {
+  const [searchParams] = useSearchParams();
+  const type = searchParams.get("type");
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    if (type) {
+      setMessage(`I am interested in becoming a ${type}.`);
+    }
+  }, [type]);
+
   useGSAP(() => {
     const titleSplit = new SplitText("#contact-title", {
       type: "lines, chars",
@@ -104,6 +117,8 @@ const Contact = () => {
             <textarea
               id="message"
               rows={4}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
             />
           </div>

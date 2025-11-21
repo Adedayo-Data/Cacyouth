@@ -36,11 +36,28 @@ const Media = () => {
     });
   });
 
+  const images = [
+    "/assets/1.jpg",
+    "/assets/2.jpg",
+    "/assets/3.jpg",
+    "/assets/4.jpg",
+    "/assets/5.jpg",
+    "/assets/6.jpg",
+    "/assets/7.jpg",
+    "/assets/8.jpg",
+  ];
+
+  // Helper to get random images
+  const getRandomImages = (count: number) => {
+    const shuffled = [...images].sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, count);
+  };
+
   return (
     <div className="min-h-screen">
       <div className="bg-linear-to-r from-purple-100 to-black-light h-100">
         <p
-          className="text-center text-[150px] text-gradient pt-25"
+          className="text-center text-[80px] md:text-[150px] text-gradient pt-35 md:pt-25"
           id="contact-title"
         >
           Gallery
@@ -49,19 +66,19 @@ const Media = () => {
       {/* Conference Section */}
       <section className="media-section py-16 ">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-4xl font-bold text-center text-primary mb-12">
+          <h2 className="text-3xl md:text-4xl font-bold text-center text-primary mb-12">
             Conference
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {Array.from({ length: 8 }, (_, i) => (
+            {getRandomImages(8).map((img, i) => (
               <div
                 key={`conf-${i}`}
                 className="media-image overflow-hidden rounded-lg shadow-md hover:shadow-lg transition-shadow"
               >
                 <img
-                  src="/assets/back.png"
+                  src={img}
                   alt={`Conference ${i + 1}`}
-                  className="w-full h-48 object-cover hover:scale-105 transition-transform duration-300"
+                  className="w-full h-64 md:h-48 object-cover hover:scale-105 transition-transform duration-300"
                 />
               </div>
             ))}
@@ -72,19 +89,19 @@ const Media = () => {
       {/* Revivals Section */}
       <section className="media-section py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-4xl font-bold text-center text-primary mb-12">
+          <h2 className="text-3xl md:text-4xl font-bold text-center text-primary mb-12">
             Revivals
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {Array.from({ length: 6 }, (_, i) => (
+            {getRandomImages(8).map((img, i) => (
               <div
                 key={`rev-${i}`}
                 className="media-image overflow-hidden rounded-lg shadow-md hover:shadow-lg transition-shadow"
               >
                 <img
-                  src="/assets/back.png"
+                  src={img}
                   alt={`Revival ${i + 1}`}
-                  className="w-full h-48 object-cover hover:scale-105 transition-transform duration-300"
+                  className="w-full h-64 md:h-48 object-cover hover:scale-105 transition-transform duration-300"
                 />
               </div>
             ))}
@@ -95,19 +112,19 @@ const Media = () => {
       {/* Programs Section */}
       <section className="media-section py-16 ">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-4xl font-bold text-center text-primary mb-12">
+          <h2 className="text-3xl md:text-4xl font-bold text-center text-primary mb-12">
             Programs
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {Array.from({ length: 8 }, (_, i) => (
+            {getRandomImages(8).map((img, i) => (
               <div
                 key={`prog-${i}`}
                 className="media-image overflow-hidden rounded-lg shadow-md hover:shadow-lg transition-shadow"
               >
                 <img
-                  src="/assets/back.png"
+                  src={img}
                   alt={`Program ${i + 1}`}
-                  className="w-full h-48 object-cover hover:scale-105 transition-transform duration-300"
+                  className="w-full h-64 md:h-48 object-cover hover:scale-105 transition-transform duration-300"
                 />
               </div>
             ))}

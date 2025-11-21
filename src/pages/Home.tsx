@@ -1,302 +1,240 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Button from "../components/ui/Button.tsx";
 import { useGSAP } from "@gsap/react";
 import { SplitText } from "gsap/all";
 import gsap from "gsap";
 import Partners from "../components/shared/Partners.tsx";
+import BrandValueSection from "../components/shared/BrandValueSection.tsx";
 import { useDonate } from "../components/shared/DonateContext";
 import { useNavigate } from "react-router-dom";
 const Home = () => {
-  const { openModal } = useDonate();
 
-  const videos = [
-    "https://www.youtube.com/embed/dQw4w9WgXcQ",
-    "https://www.youtube.com/embed/dQw4w9WgXcQ",
-    "https://www.youtube.com/embed/dQw4w9WgXcQ",
-    "https://www.youtube.com/embed/dQw4w9WgXcQ",
-    "https://www.youtube.com/embed/dQw4w9WgXcQ",
-    "https://www.youtube.com/embed/dQw4w9WgXcQ",
+  const images = [
+    "/assets/1.jpg",
+    "/assets/3.jpg",
+    "/assets/5.jpg",
   ];
 
-  const [currentPage, setCurrentPage] = useState(0);
-  const videosPerPage = 3;
-  const totalPages = Math.ceil(videos.length / videosPerPage);
-  const navigate = useNavigate();
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentImageIndex((prevIndex) => (prevIndex + 1) % images.length);
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   useGSAP(() => {
-    const heroSplit = new SplitText("#head", { type: " lines, chars" });
-    const paragraphSplit = new SplitText("#sub", { type: "lines" });
+    const tl = gsap.timeline();
 
-    heroSplit.chars.forEach((chars) => chars.classList.add("text-gradient"));
-    gsap.from(heroSplit.lines, {
-      yPercent: 100,
-      duration: 1,
-      ease: "expo.out",
-      stagger: 0.06,
-    });
-
-    gsap.from(paragraphSplit.lines, {
+    tl.from("#hero-text", {
       opacity: 0,
-      yPercent: 100,
+      y: 100,
       duration: 1,
-      ease: "power2.inOut",
-      stagger: 0.06,
-      delay: 1,
-    });
-
-    gsap.from("#btn", {
+      ease: "power2.out",
+    }).from("#hero-sub", {
       opacity: 0,
-      yPercent: 100,
+      y: 50,
       duration: 1,
-      ease: "power2.inOut",
-      stagger: 0.06,
-      delay: 1,
-    });
-
-    gsap.to("#hero-bg", {
-      yPercent: -20,
-      ease: "none",
-      scrollTrigger: {
-        trigger: "#hero",
-        start: "top bottom",
-        end: "bottom top",
-        scrub: true,
-      },
+      ease: "power2.out",
+      delay: 0.5,
     });
 
     const abtTimeLine = gsap.timeline({
       scrollTrigger: {
-        trigger: "#about",
-        start: "top center",
-        end: "bottom bottom",
-        scrub: true,
+        trigger: "#abt",
+        start: "top 80%",
+        end: "bottom 20%",
+        toggleActions: "play none none reverse",
       },
     });
 
     abtTimeLine.from("#abt", {
       opacity: 0,
-      xPercent: -100,
-      duration: 0.5,
-      ease: "power2.inOut",
-      stagger: 0.06,
+      y: 50,
+      duration: 0.8,
+      ease: "power2.out",
     });
 
-    abtTimeLine.from("#abtimg", {
-      opacity: 0,
-      xPercent: 100,
-      duration: 0.5,
-      ease: "power2.inOut",
-    });
-
-    const contactTimeLine = gsap.timeline({
-      scrollTrigger: {
-        trigger: "#contact",
-        start: "top center",
-        end: "bottom center",
-        toggleActions: "play none none reverse",
-      },
-    });
-
-    contactTimeLine
-      .from("#cont h2", {
+    abtTimeLine.from(
+      "#abtimg",
+      {
         opacity: 0,
         y: 50,
         duration: 0.8,
         ease: "power2.out",
-      })
-      .from(
-        "#cont p",
-        {
-          opacity: 0,
-          y: 50,
-          duration: 0.8,
-          ease: "power2.out",
-        },
-        "-=0.4"
-      )
-      .from(
-        "#cont button",
-        {
-          opacity: 0,
-          y: 50,
-          duration: 0.8,
-          ease: "power2.out",
-        },
-        "-=0.4"
-      );
-
-    const videoTimeline = gsap.timeline({
-      scrollTrigger: {
-        trigger: "#videos",
-        start: "top center",
-        end: "bottom center",
-        toggleActions: "play none none reverse",
       },
-    });
+      "-=0.4"
+    );
 
-    videoTimeline
-      .from("#videos h2", {
-        opacity: 0,
+    // Video Section Animation
+    // Testimonies Section Animation
+    gsap.fromTo(
+      ".video-card",
+      {
         y: 50,
+        opacity: 0,
+      },
+      {
+        scrollTrigger: {
+          trigger: "#video-section",
+          start: "top 80%", // Trigger earlier
+          toggleActions: "play none none reverse",
+        },
+        y: 0,
+        opacity: 1,
         duration: 0.8,
+        stagger: 0.2,
         ease: "power2.out",
-      })
-      .from(
-        "#videos .grid iframe",
-        {
-          opacity: 0,
-          scale: 0.9,
-          duration: 0.6,
-          ease: "back.out(1.7)",
-          stagger: 0.1,
-        },
-        "-=0.4"
-      )
-      .from(
-        "#videos .flex",
-        {
-          opacity: 0,
-          y: 20,
-          duration: 0.6,
-          ease: "power2.out",
-        },
-        "-=0.4"
-      );
+      }
+    );
   });
 
-  function handleAbout() {
-    navigate("/about");
-  }
+  const navigate = useNavigate();
 
-  function handleContact() {
-    navigate("/contact");
-  }
+  const openModal = () => {
+    navigate("/sponsorship");
+  };
+
+  const testimonies = [
+    {
+      name: "Sarah Adebayo",
+      role: "Youth Member",
+      quote:
+        "This fellowship has completely transformed my spiritual life. The community is so welcoming and the word is always powerful.",
+      image: "/assets/1.jpg",
+    },
+    {
+      name: "David Okon",
+      role: "Choir Lead",
+      quote:
+        "The worship atmosphere is unlike anything I've experienced. It's a place where you can truly encounter God's presence.",
+      image: "/assets/3.jpg",
+    },
+    {
+      name: "Grace Nwachukwu",
+      role: "Volunteer",
+      quote:
+        "Serving here has given me a sense of purpose and family. I've grown so much in my faith and leadership skills.",
+      image: "/assets/5.jpg",
+    },
+  ];
 
   return (
     <div>
-      <section className="bg-[linear-gradient(rgba(26,16,34,0.7)_0%,rgba(74,20,140,0.5)_100%),url('/assets/back.png')] bg-cover bg-center bg-no-repeat w-full h-screen space-y-7 pt-30  px-4  ">
-        <h1
-          className="text-white text-6xl font-black leading-tight tracking-tight  lg:text-[80px] text-center"
-          id="head"
-        >
-          CAC Youth Medaiyese <br /> WorldWide
-        </h1>
-        <h2
-          className="text-white font-normal leading-normal  text-center"
-          id="sub"
-        >
-          Partner with us to empower the next generation. Your support fuels a
-          spiritual <br /> revival that impacts thousands of young lives across
-          the region.
-        </h2>
-        <div className="flex justify-center mt-12" id="btn">
+      <section className="relative w-full h-screen overflow-hidden">
+        {images.map((img, index) => (
+          <div
+            key={index}
+            className="absolute inset-0 bg-cover bg-center transition-opacity duration-1000 ease-in-out"
+            style={{
+              backgroundImage: `linear-gradient(rgba(26,16,34,0.7) 0%, rgba(74,20,140,0.5) 100%), url(${img})`,
+              opacity: index === currentImageIndex ? 1 : 0,
+              zIndex: index === currentImageIndex ? 1 : 0,
+            }}
+          />
+        ))}
+
+        <div className="relative z-10 h-full flex flex-col justify-center items-center px-4 text-center space-y-7 pt-20">
+          <div className="overflow-hidden flex flex-col items-center">
+            <h2 className="text-xl md:text-3xl font-bold tracking-[0.2em] mb-2 text-gray-300 uppercase text-center">
+              CAC Youth Medaiyese Region
+            </h2>
+            <h1
+              className="text-5xl md:text-7xl lg:text-[100px] font-black leading-tight tracking-tight text-gradient"
+              id="hero-text"
+            >
+              RAISING GIANTS
+            </h1>
+          </div>
+          <p
+            className="text-lg md:text-2xl text-gray-300 max-w-2xl mx-auto"
+            id="hero-sub"
+          >
+            Empowering the next generation of kingdom leaders through worship,
+            word, and fellowship.
+          </p>
           <Button
             title="Become a Sponsor"
-            containerClass="bg-black-light hover:bg-gray-800 cursor-pointer hover:scale-105"
+            containerClass="bg-black-light hover:bg-gray-800 cursor-pointer hover:scale-105 transition-transform duration-300"
             handleClick={openModal}
           />
         </div>
       </section>
-      <section
-        className=" py-10 flex flex-col md:flex-row justify-center items-center gap-25 px-10 overflow-hidden"
-        id="about"
-      >
-        <div className="text-left">
-          <div id="abt">
-            <h2 className="text-5xl font-bold leading-tight tracking-tight text-primary">
-              About the <br /> Fellowship
-            </h2>
-            <div className="mt-6 max-w-3xl">
-              <p className="text-sm leading-relaxed ">
-                The Christ Apostolic Church Youth Fellowship (CACYOF){" "}
-                <br className="hidden md:block" /> of the Medaiyese Region is
-                dedicated to nurturing a generation <br /> of young leaders
-                grounded in faith, purpose, and community.
-              </p>
-            </div>
-            <Button
-              title="About Us"
-              containerClass="bg-purple-100 hover:bg-gray-800 cursor-pointer hover:scale-105 mt-5"
-              handleClick={handleAbout}
-            />
-          </div>
+
+      <section className="py-20 flex flex-col lg:flex-row justify-center items-center gap-12 lg:gap-20 px-6 lg:px-10 overflow-hidden" id="about">
+        <div className="w-full max-w-2xl text-center lg:text-left space-y-6" id="abt">
+          <h2 className="text-4xl md:text-5xl font-bold text-white">
+            About The Fellowship
+          </h2>
+          <p className="text-lg text-gray-300 leading-relaxed">
+            The Christ Apostolic Church Youth Fellowship (CACYOF) of the
+            Medaiyese Region is dedicated to nurturing a generation of young
+            leaders grounded in faith, purpose, and community.
+          </p>
+          <Button
+            title="Learn More"
+            containerClass="bg-primary hover:bg-purple-700 text-white mt-4 inline-block"
+            handleClick={() => navigate("/about")}
+          />
         </div>
         <img
-          src="/assets/back.png"
-          alt="Image"
-          className="h-100 w-110 max-w-full rounded-lg hover:scale-105 transition-transform duration-300 cursor-pointer"
+          src="/assets/2.jpg"
+          alt="Fellowship Gathering"
           id="abtimg"
+          className="w-full max-w-md lg:max-w-lg rounded-2xl shadow-2xl hover:scale-105 transition-transform duration-300 cursor-pointer object-cover aspect-[4/3]"
         />
       </section>
-      <section>
-        <Partners />
-      </section>
 
-      {/* Videos Section */}
-      <section className="py-16 " id="videos">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-center text-primary mb-8">
-            Featured Videos
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            {videos
-              .slice(
-                currentPage * videosPerPage,
-                (currentPage + 1) * videosPerPage
-              )
-              .map((video, index) => (
-                <div
-                  key={index}
-                  className="aspect-video bg-black rounded-lg overflow-hidden"
-                >
-                  <iframe
-                    src={video}
-                    title={`Featured Video ${
-                      currentPage * videosPerPage + index + 1
-                    }`}
-                    className="w-full h-full"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                </div>
-              ))}
+      <section className="py-24 bg-black-light relative overflow-hidden" id="video-section">
+        {/* Background Elements */}
+        <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
+          <div className="absolute top-10 left-10 w-64 h-64 bg-purple-600/20 rounded-full blur-[100px]"></div>
+          <div className="absolute bottom-10 right-10 w-80 h-80 bg-blue-600/20 rounded-full blur-[100px]"></div>
+        </div>
+
+        <div className="max-w-7xl mx-auto px-6 relative z-10">
+          <div className="text-center mb-20">
+            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+              Voices of Impact
+            </h2>
+            <p className="text-gray-400 text-lg max-w-2xl mx-auto">
+              Hear from the lives that have been touched, transformed, and empowered through our fellowship.
+            </p>
           </div>
-          <div className="flex justify-center space-x-2">
-            {Array.from({ length: totalPages }, (_, index) => (
-              <button
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {testimonies.map((testimony, index) => (
+              <div
                 key={index}
-                onClick={() => setCurrentPage(index)}
-                className={`w-3 h-3 rounded-full transition-colors ${
-                  index === currentPage ? "bg-purple-100" : "bg-gray-400"
-                }`}
-              />
+                className="video-card bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-8 hover:bg-white/10 transition-all duration-300 hover:-translate-y-2 group"
+              >
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-purple-500/50">
+                    <img src={testimony.image} alt={testimony.name} className="w-full h-full object-cover" />
+                  </div>
+                  <div>
+                    <h3 className="text-white font-bold text-lg">{testimony.name}</h3>
+                    <p className="text-purple-400 text-sm">{testimony.role}</p>
+                  </div>
+                </div>
+                <div className="mb-4">
+                  <svg className="w-8 h-8 text-white/20 group-hover:text-purple-500/50 transition-colors" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M14.017 21L14.017 18C14.017 16.896 14.913 16 16.017 16H19.017C19.569 16 20.017 15.552 20.017 15V9C20.017 8.448 19.569 8 19.017 8H15.017C14.465 8 14.017 8.448 14.017 9V11C14.017 11.552 13.569 12 13.017 12H12.017V5H22.017V15C22.017 18.314 19.331 21 16.017 21H14.017ZM5.01697 21L5.01697 18C5.01697 16.896 5.91297 16 7.01697 16H10.017C10.569 16 11.017 15.552 11.017 15V9C11.017 8.448 10.569 8 10.017 8H6.01697C5.46497 8 5.01697 8.448 5.01697 9V11C5.01697 11.552 4.56897 12 4.01697 12H3.01697V5H13.017V15C13.017 18.314 10.331 21 7.01697 21H5.01697Z" />
+                  </svg>
+                </div>
+                <p className="text-gray-300 leading-relaxed italic">
+                  "{testimony.quote}"
+                </p>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section
-        className="py-16 text-white bg-linear-to-b from-purple-900 to-black"
-        id="contact"
-      >
-        <div
-          className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6"
-          id="cont"
-        >
-          <h2 className="text-5xl font-bold leading-tight tracking-tight ">
-            Join the Movement
-          </h2>
-          <p className="mt-4 text-lg text-white">
-            This is more than a concert—it’s a revival. <br /> Together, we can
-            empower the next generation.
-          </p>
-          <Button
-            title="Contact Us"
-            containerClass="bg-purple-100 hover:bg-gray-800 cursor-pointer hover:scale-105 mt-5"
-            handleClick={handleContact}
-          />
-        </div>
-      </section>
+      <Partners />
+      <BrandValueSection />
     </div>
   );
 };
