@@ -1,11 +1,9 @@
 import { useState, useEffect } from "react";
 import Button from "../components/ui/Button.tsx";
 import { useGSAP } from "@gsap/react";
-import { SplitText } from "gsap/all";
 import gsap from "gsap";
 import Partners from "../components/shared/Partners.tsx";
 import BrandValueSection from "../components/shared/BrandValueSection.tsx";
-import { useDonate } from "../components/shared/DonateContext";
 import { useNavigate } from "react-router-dom";
 const Home = () => {
 
