@@ -4,11 +4,14 @@ import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import Partners from "../components/shared/Partners.tsx";
 import BrandValueSection from "../components/shared/BrandValueSection.tsx";
+import BrandOpportunities from "../components/shared/BrandOpportunities.tsx";
 import { useDonate } from "../components/shared/DonateContext.tsx";
 import VanillaTilt from "vanilla-tilt";
+import { useNavigate } from "react-router-dom";
 
 const Home = () => {
   const { openModal } = useDonate();
+  const navigate = useNavigate();
   const images = ["/assets/1.jpg", "/assets/3.jpg", "/assets/5.jpg"];
 
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -107,14 +110,14 @@ const Home = () => {
       image: "/assets/1.jpg",
     },
     {
-      name: "David Okon",
-      role: "Choir Lead",
+      name: "Licia",
+      role: "Choir Member",
       quote:
         "The worship atmosphere is unlike anything I've experienced. It's a place where you can truly encounter God's presence.",
       image: "/assets/3.jpg",
     },
     {
-      name: "Grace Nwachukwu",
+      name: "Praise Eniola",
       role: "Volunteer",
       quote:
         "Serving here has given me a sense of purpose and family. I've grown so much in my faith and leadership skills.",
@@ -137,9 +140,9 @@ const Home = () => {
           />
         ))}
 
-        <div className="relative z-10 h-full flex flex-col justify-center items-center px-4 text-center space-y-7 pt-20">
+        <div className="relative z-10 h-full flex flex-col justify-center items-start px-4 text-left space-y-7 pt-20 md:pl-20">
           <h1
-            className="text-white text-5xl font-black leading-tight tracking-tight  lg:text-[80px] text-center"
+            className="text-white text-5xl font-black leading-tight tracking-tight  lg:text-[80px] text-left"
             id="head"
           >
             <span>
@@ -148,17 +151,16 @@ const Home = () => {
             </span>
           </h1>
           <h2
-            className="text-white font-normal leading-normal  text-center"
+            className="text-white font-normal leading-normal  text-left"
             id="sub"
           >
-            Raising Worshippers. Redefining Kingdom Sounds. Transforming
-            Generations. <br /> A home where worshippers rise, Kingdom sounds
+            A home where worshippers rise, Kingdom sounds
             are reimagined, and generations are transformed.
           </h2>
           <Button
-            title="Become a Sponsor"
+            title="Emergence Concert"
             containerClass="bg-black-light hover:bg-gray-800 cursor-pointer hover:scale-105 transition-transform duration-300"
-            handleClick={openModal}
+            handleClick={() => navigate('/ministry')}
           />
         </div>
       </section>
@@ -191,7 +193,7 @@ const Home = () => {
               <Button
                 title="About Us"
                 containerClass="bg-purple-100 hover:bg-gray-800 cursor-pointer hover:scale-105 mt-5"
-                // handleClick={handleAbout}
+              // handleClick={handleAbout}
               />
             </div>
           </div>
@@ -266,52 +268,7 @@ const Home = () => {
 
       <Partners />
       <BrandValueSection />
-      <section className="py-16 bg-linear-to-r from-purple-50 to-white/50 brand-value-section">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold leading-tight tracking-tight text-primary sm:text-4xl">
-              Brand Value Opportunities
-            </h2>
-            <p className="mt-4 text-lg text-gray-600 max-w-3xl mx-auto">
-              Partnering with us positions your brand at the heart of a vibrant,
-              growing, and impactful youth movement. We welcome sponsorships
-              from all industries looking to connect with a positive,
-              faith-driven audience and support meaningful community
-              transformation.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-1 max-w-2xl md:left-1/4 relative gap-8 mb-12">
-            <div className="bg-black-light p-6 rounded-lg shadow-md">
-              <h3 className="text-xl font-semibold text-primary mb-4">
-                Through your partnership, your brand becomes part of:
-              </h3>
-              <ul className="space-y-3">
-                <li className="flex items-start">
-                  <span className="text-primary mr-2">•</span>
-                  <span>A large, engaged youth community</span>
-                </li>
-                <li className="flex items-start">
-                  <span className="text-primary mr-2">•</span>
-                  <span>A high-impact worship and creative ministry</span>
-                </li>
-                <li className="flex items-start">
-                  <span className="text-primary mr-2">•</span>
-                  <span>
-                    A platform that promotes excellence, values, and purpose
-                  </span>
-                </li>
-                <li className="flex items-start">
-                  <span className="text-primary mr-2">•</span>
-                  <span>
-                    Life-changing outreach initiatives across the region
-                  </span>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
+      <BrandOpportunities />
     </div>
   );
 };

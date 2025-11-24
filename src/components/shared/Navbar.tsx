@@ -10,8 +10,8 @@ interface NavbarProps {
 
 const Navbar = ({ onDonateClick }: NavbarProps) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const tl = useRef<gsap.core.Timeline | null>(null);
+  const menuRef = useRef < HTMLDivElement > (null);
+  const tl = useRef < gsap.core.Timeline | null > (null);
 
   useGSAP(() => {
     // Scroll Animation for Navbar Background
@@ -106,6 +106,9 @@ const Navbar = ({ onDonateClick }: NavbarProps) => {
           <Link to="/media">
             <li className="nav-hover-btn !ml-0">Media</li>
           </Link>
+          <Link to="/partnership">
+            <li className="nav-hover-btn !ml-0">Partnership</li>
+          </Link>
           <Link to="/contact">
             <li className="nav-hover-btn !ml-0">Contact</li>
           </Link>
@@ -113,26 +116,13 @@ const Navbar = ({ onDonateClick }: NavbarProps) => {
 
         {/* Center: Logo */}
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-          <div className="relative">
-            <div className="size-20 text-purple-100">
-              <svg
-                fill="none"
-                viewBox="0 0 48 48"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  clipRule="evenodd"
-                  d="M24 4H6V17.3333V30.6667H24V44H42V30.6667V17.3333H24V4Z"
-                  fill="currentColor"
-                  fillRule="evenodd"
-                ></path>
-              </svg>
-            </div>
-            <h2 className="font-bold tracking-[-0.015em] left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 absolute text-center text-white/80 pointer-events-none whitespace-nowrap">
-              <p className="text-3xl">CACYOF</p>
-              <p className="text-lg -mt-2">Medaiyese</p>
-            </h2>
-          </div>
+          <Link to="/">
+            <img
+              src="/assets/CACYOF.png"
+              alt="CACYOF Medaiyese Logo"
+              className="h-32 w-auto object-contain"
+            />
+          </Link>
         </div>
 
         {/* Right Side: Social Links (Text) */}
@@ -173,31 +163,24 @@ const Navbar = ({ onDonateClick }: NavbarProps) => {
           >
             Tiktok
           </a>
+          <button
+            onClick={displayModal}
+            className="hover:text-purple-400 transition-colors duration-300 font-semibold"
+          >
+            Donate
+          </button>
         </div>
       </div>
 
       {/* Mobile Header */}
       <div className="md:hidden py-2 flex justify-between items-center px-4 relative z-50">
-        <div className="relative">
-          <div className="size-16 text-purple-100">
-            <svg
-              fill="none"
-              viewBox="0 0 48 48"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                clipRule="evenodd"
-                d="M24 4H6V17.3333V30.6667H24V44H42V30.6667V17.3333H24V4Z"
-                fill="currentColor"
-                fillRule="evenodd"
-              ></path>
-            </svg>
-          </div>
-          <h2 className="font-bold tracking-[-0.015em] left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 absolute text-center text-white/80 whitespace-nowrap">
-            <p className="text-2xl">CACYOF</p>
-            <p className="text-sm -mt-1">Medaiyese</p>
-          </h2>
-        </div>
+        <Link to="/">
+          <img
+            src="/assets/CACYOF.png"
+            alt="CACYOF Medaiyese Logo"
+            className="h-24 w-auto object-contain"
+          />
+        </Link>
         <button onClick={toggleMenu} className="text-white z-50">
           {isMenuOpen ? <FaTimes size={30} /> : <FaBars size={30} />}
         </button>
@@ -227,6 +210,11 @@ const Navbar = ({ onDonateClick }: NavbarProps) => {
           <Link to="/media" onClick={closeMenu}>
             <li className="mobile-nav-link hover:text-purple-400 transition-colors">
               Media
+            </li>
+          </Link>
+          <Link to="/partnership" onClick={closeMenu}>
+            <li className="mobile-nav-link hover:text-purple-400 transition-colors">
+              Partnership
             </li>
           </Link>
           <Link to="/contact" onClick={closeMenu}>
