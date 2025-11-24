@@ -7,6 +7,7 @@ import About from "./pages/About.tsx";
 import Ministry from "./pages/Ministry.tsx";
 import Media from "./pages/Media.tsx";
 import Contact from "./pages/Contact.tsx";
+import Partnership from "./pages/Partnership.tsx";
 import { DonateProvider } from "./components/shared/DonateContext.tsx";
 
 gsap.registerPlugin(ScrollTrigger, SplitText);
@@ -20,6 +21,7 @@ const App = () => {
           <Route path="/about" element={<About />} />
           <Route path="/ministry" element={<Ministry />} />
           <Route path="/media" element={<Media />} />
+          <Route path="/partnership" element={<Partnership />} />
           <Route path="/contact" element={<Contact />} />
         </Route>
       </Routes>
