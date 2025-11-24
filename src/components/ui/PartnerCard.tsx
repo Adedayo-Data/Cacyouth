@@ -8,6 +8,7 @@ interface PartnerCardProps {
   features: string[];
   className?: string;
   children?: React.ReactNode;
+  onClick?: () => void;
 }
 
 const PartnerCard = ({
@@ -17,36 +18,44 @@ const PartnerCard = ({
   description,
   features,
   className,
+  onClick,
 }: PartnerCardProps) => {
   const [showAll, setShowAll] = useState(false);
   const visibleFeatures = showAll ? features : features.slice(0, 3);
 
   return (
     <div
-      className={`border border-gray-200 dark:border-gray-700 rounded-xl p-6 flex flex-col bg-white/90 ${className}`}
+      className={`border border-gray-300 dark:border-white/10 rounded-xl p-6 flex flex-col bg-white dark:bg-white/5 shadow-lg ${className} ${onClick
+          ? "cursor-pointer hover:shadow-2xl hover:scale-105 transition-all duration-300 hover:border-purple-500/50"
+          : ""
+        }`}
+      onClick={onClick}
     >
-      <span className=" text-4xl mb-4 text-black-light">
+      <span className="text-4xl mb-4 text-black-light dark:text-purple-400">
         {React.createElement(icon)}
       </span>
 
-      <h3 className="text-xl font-bold text-gray-200">{title}</h3>
-      <p className="text-lg font-semibold text-black-light mb-2">
+      <h3 className="text-xl font-bold text-gray-900 dark:text-white">{title}</h3>
+      <p className="text-lg font-semibold text-black-light dark:text-purple-300 mb-2">
         {priceRange}
       </p>
-      <p className="text-sm text-gray-600 mb-4">{description}</p>
+      <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">{description}</p>
 
-      <ul className="mt-4 space-y-2 text-sm text-gray-700 grow">
+      <ul className="mt-4 space-y-2 text-sm text-gray-700 dark:text-gray-400 grow">
         {visibleFeatures.map((feature, index) => (
           <li key={index} className="flex items-start">
-            • {feature}
+            <span className="mr-2 text-purple-500">•</span> {feature}
           </li>
         ))}
       </ul>
 
       {features.length > 3 && (
         <button
-          onClick={() => setShowAll(!showAll)}
-          className="mt-4 text-black-light hover:text-primary-dark font-semibold text-sm transition-colors"
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowAll(!showAll);
+          }}
+          className="mt-4 text-black-light dark:text-purple-400 hover:text-purple-600 dark:hover:text-purple-300 font-semibold text-sm transition-colors self-start"
         >
           {showAll ? "See Less" : "See More"}
         </button>
