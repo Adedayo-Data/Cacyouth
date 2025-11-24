@@ -5,12 +5,10 @@ import gsap from "gsap";
 import Partners from "../components/shared/Partners.tsx";
 import BrandValueSection from "../components/shared/BrandValueSection.tsx";
 import BrandOpportunities from "../components/shared/BrandOpportunities.tsx";
-import { useDonate } from "../components/shared/DonateContext.tsx";
 import VanillaTilt from "vanilla-tilt";
 import { useNavigate } from "react-router-dom";
 
 const Home = () => {
-  const { openModal } = useDonate();
   const navigate = useNavigate();
   const images = ["/assets/1.jpg", "/assets/3.jpg", "/assets/5.jpg"];
 
