@@ -14,6 +14,11 @@ const Contact = () => {
     email: "",
     message: "",
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState < {
+    type: "success" | "error" | null;
+    message: string;
+  } > ({ type: null, message: "" });
 
   useEffect(() => {
     if (location.state?.sponsorship) {
@@ -30,11 +35,48 @@ const Contact = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle form submission logic here
-    console.log("Form submitted:", formData);
-    alert("Message sent! We will get back to you shortly.");
+    setIsSubmitting(true);
+    setSubmitStatus({ type: null, message: "" });
+
+    try {
+      // Web3Forms API endpoint
+      const response = await fetch("https://api.web3forms.com/submit", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          access_key: "b0e5369a-c015-4a71-8df5-eafbe3e2276f",
+          name: formData.name,
+          email: formData.email,
+          message: formData.message,
+          subject: "New Contact Form Submission - MRYC Website",
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setSubmitStatus({
+          type: "success",
+          message: "Message sent successfully! We'll get back to you shortly.",
+        });
+        // Reset form
+        setFormData({ name: "", email: "", message: "" });
+      } else {
+        throw new Error("Submission failed");
+      }
+    } catch (error) {
+      setSubmitStatus({
+        type: "error",
+        message: "Failed to send message. Please try again or contact us directly via email.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   useGSAP(() => {
@@ -186,6 +228,18 @@ const Contact = () => {
                 Send a Message
               </h2>
               <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Status Messages */}
+                {submitStatus.type && (
+                  <div
+                    className={`p-4 rounded-xl ${submitStatus.type === "success"
+                      ? "bg-green-500/20 border border-green-500/50 text-green-300"
+                      : "bg-red-500/20 border border-red-500/50 text-red-300"
+                      }`}
+                  >
+                    {submitStatus.message}
+                  </div>
+                )}
+
                 <div className="form-group">
                   <label
                     htmlFor="name"
@@ -200,7 +254,8 @@ const Contact = () => {
                     value={formData.name}
                     onChange={handleChange}
                     required
-                    className="w-full px-4 py-4 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all outline-none"
+                    disabled={isSubmitting}
+                    className="w-full px-4 py-4 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                     placeholder="Your Name"
                   />
                 </div>
@@ -218,7 +273,8 @@ const Contact = () => {
                     value={formData.email}
                     onChange={handleChange}
                     required
-                    className="w-full px-4 py-4 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all outline-none"
+                    disabled={isSubmitting}
+                    className="w-full px-4 py-4 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                     placeholder="your@email.com"
                   />
                 </div>
@@ -235,15 +291,19 @@ const Contact = () => {
                     value={formData.message}
                     onChange={handleChange}
                     required
+                    disabled={isSubmitting}
                     rows={5}
-                    className="w-full px-4 py-4 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all outline-none resize-none"
+                    className="w-full px-4 py-4 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all outline-none resize-none disabled:opacity-50 disabled:cursor-not-allowed"
                     placeholder="How can we help you?"
                   />
                 </div>
                 <div className="form-group pt-4">
                   <Button
-                    title="Send Message"
-                    containerClass="w-full bg-purple-600 hover:bg-purple-700 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-purple-600/30 transition-all duration-300 transform hover:-translate-y-1"
+                    title={isSubmitting ? "Sending..." : "Send Message"}
+                    containerClass={`w-full ${isSubmitting
+                      ? "bg-purple-600/50 cursor-not-allowed"
+                      : "bg-purple-600 hover:bg-purple-700"
+                      } text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-purple-600/30 transition-all duration-300 transform hover:-translate-y-1`}
                   />
                 </div>
               </form>

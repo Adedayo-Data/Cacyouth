@@ -131,16 +131,16 @@ const Home = () => {
             key={index}
             className="absolute inset-0 bg-cover bg-center transition-opacity duration-1000 ease-in-out"
             style={{
-              backgroundImage: `linear-gradient(rgba(26,16,34,0.7) 0%, rgba(74,20,140,0.5) 100%), url(${img})`,
+              backgroundImage: `linear-gradient(rgba(26,16,34,0.85) 0%, rgba(74,20,140,0.65) 100%), url(${img})`,
               opacity: index === currentImageIndex ? 1 : 0,
               zIndex: index === currentImageIndex ? 1 : 0,
             }}
           />
         ))}
 
-        <div className="relative z-10 h-full flex flex-col justify-center items-start px-4 text-left space-y-7 pt-20 md:pl-20">
+        <div className="relative z-10 h-full flex flex-col justify-center items-center px-4 text-center space-y-7 pt-20">
           <h1
-            className="text-white text-5xl font-black leading-tight tracking-tight  lg:text-[80px] text-left"
+            className="text-white text-5xl font-black leading-tight tracking-tight  lg:text-[80px] text-center"
             id="head"
           >
             <span>
@@ -149,7 +149,7 @@ const Home = () => {
             </span>
           </h1>
           <h2
-            className="text-white font-normal leading-normal  text-left"
+            className="text-white font-normal leading-normal  text-center max-w-3xl"
             id="sub"
           >
             A home where worshippers rise, Kingdom sounds
@@ -191,7 +191,7 @@ const Home = () => {
               <Button
                 title="About Us"
                 containerClass="bg-purple-100 hover:bg-gray-800 cursor-pointer hover:scale-105 mt-5"
-              // handleClick={handleAbout}
+                handleClick={() => navigate('/about')}
               />
             </div>
           </div>
