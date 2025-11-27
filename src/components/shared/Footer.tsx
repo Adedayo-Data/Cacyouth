@@ -5,25 +5,12 @@ const Footer = () => {
     <div className="bg-purple-100 text-white ">
       <div className="mt-8 md:mt-0 md:order-1 py-5  flex md:flex-row flex-col items-center justify-between px-15 sm:space-y-1">
         <div className="text-center sm:space-y-2">
-          <div className="relative left-1/4 md:left-0">
-            <div className="size-15 text-gray-200 ml-4">
-              <svg
-                fill="none"
-                viewBox="0 0 48 48"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  clipRule="evenodd"
-                  d="M24 4H6V17.3333V30.6667H24V44H42V30.6667V17.3333H24V4Z"
-                  fill="currentColor"
-                  fillRule="evenodd"
-                ></path>
-              </svg>
-            </div>
-            <h2 className=" font-bold tracking-[-0.015em] left-5/150 top-2 absolute text-center text-white/80">
-              <p className="text-xl">CACYOF</p>
-              <p className="text-sm -mt-2">Medaiyese</p>
-            </h2>
+          <div className="flex justify-center md:justify-start mb-4">
+            <img
+              src="/assets/CACYOF.png"
+              alt="CACYOF Medaiyese Logo"
+              className="h-48 w-auto object-contain"
+            />
           </div>
           <div className="flex items-center gap-2 ">
             <FaMapPin />
@@ -44,7 +31,7 @@ const Footer = () => {
           <div className="flex items-center md:justify-start justify-center gap-2">
             <FaPhone />
             <a className="hover:text-secondary" href="tel:+2348142926262">
-              +234 814-121-5569
+              +234 814-121-5567
             </a>
           </div>
 

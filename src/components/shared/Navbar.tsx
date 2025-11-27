@@ -120,7 +120,7 @@ const Navbar = ({ onDonateClick }: NavbarProps) => {
             <img
               src="/assets/CACYOF.png"
               alt="CACYOF Medaiyese Logo"
-              className="h-32 w-auto object-contain"
+              className="h-24 w-auto object-contain"
             />
           </Link>
         </div>
@@ -165,8 +165,11 @@ const Navbar = ({ onDonateClick }: NavbarProps) => {
           </a>
           <button
             onClick={displayModal}
-            className="hover:text-purple-400 transition-colors duration-300 font-semibold"
+            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 rounded-full font-semibold transition-all duration-300 shadow-lg shadow-purple-900/30 hover:shadow-purple-900/50 hover:scale-105 flex items-center gap-2"
           >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
+            </svg>
             Donate
           </button>
         </div>
@@ -178,7 +181,7 @@ const Navbar = ({ onDonateClick }: NavbarProps) => {
           <img
             src="/assets/CACYOF.png"
             alt="CACYOF Medaiyese Logo"
-            className="h-24 w-auto object-contain"
+            className="h-20 w-auto object-contain"
           />
         </Link>
         <button onClick={toggleMenu} className="text-white z-50">
