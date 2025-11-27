@@ -9,7 +9,7 @@ const Footer = () => {
             <img
               src="/assets/CACYOF.png"
               alt="CACYOF Medaiyese Logo"
-              className="h-48 w-auto object-contain"
+              className="h-24 w-auto object-contain"
             />
           </div>
           <div className="flex items-center gap-2 ">
