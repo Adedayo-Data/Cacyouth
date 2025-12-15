@@ -65,6 +65,34 @@ const Home = () => {
       "-=0.4"
     );
 
+    // Emergence Concert Section Animation
+    const emergenceTimeLine = gsap.timeline({
+      scrollTrigger: {
+        trigger: "#emergence",
+        start: "top 80%",
+        end: "bottom 20%",
+        toggleActions: "play none none reverse",
+      },
+    });
+
+    emergenceTimeLine.from("#emergence-content", {
+      opacity: 0,
+      y: 50,
+      duration: 0.8,
+      ease: "power2.out",
+    });
+
+    emergenceTimeLine.from(
+      "#emergence-img",
+      {
+        opacity: 0,
+        y: 50,
+        duration: 0.8,
+        ease: "power2.out",
+      },
+      "-=0.4"
+    );
+
     // Video Section Animation
     // Testimonies Section Animation
     gsap.fromTo(
@@ -200,6 +228,48 @@ const Home = () => {
           src="/assets/2.jpg"
           alt="Fellowship Gathering"
           id="abtimg"
+          className="w-full max-w-md lg:max-w-lg rounded-2xl shadow-2xl hover:scale-105 transition-transform duration-300 cursor-pointer object-cover aspect-4/3"
+        />
+      </section>
+
+      <section
+        className="py-20 flex flex-col lg:flex-row-reverse justify-center items-center gap-12 lg:gap-20 px-6 lg:px-10 overflow-hidden bg-gradient-to-b from-black-light/50 to-transparent"
+        id="emergence"
+      >
+        <div
+          className="w-full max-w-2xl text-center lg:text-left space-y-6"
+          id="emergence-content"
+        >
+          <div className="text-left">
+            <div>
+              <h5 className="text-purple-500 font-bold tracking-widest uppercase mb-4 text-sm">
+                Flagship Event
+              </h5>
+              <h2 className="text-5xl font-bold leading-tight tracking-tight text-primary">
+                The Emergence Concert
+              </h2>
+              <div className="mt-6 max-w-3xl">
+                <p className="text-sm leading-relaxed ">
+                  Experience a night of powerful worship, divine encounters, and <br />
+                  Kingdom sounds that transcend generations. The Emergence Concert <br />
+                  is our flagship annual worship experience where heaven meets earth, <br />
+                  and lives are transformed through the presence of God. Join us as we <br />
+                  gather worshippers from across the region for an unforgettable <br />
+                  celebration of faith, music, and unity.
+                </p>
+              </div>
+              <Button
+                title="Learn More"
+                containerClass="bg-purple-100 hover:bg-gray-800 cursor-pointer hover:scale-105 mt-5"
+                handleClick={() => navigate('/ministry')}
+              />
+            </div>
+          </div>
+        </div>
+        <img
+          src="/assets/4.jpg"
+          alt="Emergence Concert"
+          id="emergence-img"
           className="w-full max-w-md lg:max-w-lg rounded-2xl shadow-2xl hover:scale-105 transition-transform duration-300 cursor-pointer object-cover aspect-4/3"
         />
       </section>
