@@ -6,11 +6,21 @@ const Footer = () => {
       <div className="mt-8 md:mt-0 md:order-1 py-5  flex md:flex-row flex-col items-center justify-between px-15 sm:space-y-1">
         <div className="text-center sm:space-y-2">
           <div className="flex justify-center md:justify-start mb-4">
-            <img
-              src="/assets/CACYOF.png"
-              alt="CACYOF Medaiyese Logo"
-              className="h-24 w-auto object-contain"
-            />
+            <div className="flex items-center gap-3">
+              <img
+                src="/favicon.png"
+                alt="CAC Logo"
+                className="h-16 w-16 object-contain"
+              />
+              <div className="flex flex-col">
+                <span className="text-white font-bold text-2xl tracking-tight leading-tight">
+                  CACYOF
+                </span>
+                <span className="text-purple-300 text-sm font-medium tracking-wider uppercase">
+                  Medaiyese Region
+                </span>
+              </div>
+            </div>
           </div>
           <div className="flex items-center gap-2 ">
             <FaMapPin />
