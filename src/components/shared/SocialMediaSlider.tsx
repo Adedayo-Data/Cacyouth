@@ -52,7 +52,7 @@ const SocialMediaSlider = () => {
                                 ))}
                             </div>
                             <p className="text-gray-400 text-sm">
-                                Join <span className="text-white font-bold">37K+</span> followers across platforms
+                                we've reached over <span className="text-white font-bold">1M+</span> views across our platform
                             </p>
                         </div>
                     </div>
@@ -71,12 +71,12 @@ const SocialMediaSlider = () => {
                                     <div
                                         key={index}
                                         className={`absolute inset-0 transition-all duration-700 ease-out ${isActive
-                                                ? 'translate-x-0 scale-100 opacity-100 z-30'
-                                                : isNext
-                                                    ? 'translate-x-[20px] scale-95 opacity-60 z-20'
-                                                    : isPrev
-                                                        ? '-translate-x-[100%] scale-90 opacity-0 z-10'
-                                                        : 'translate-x-[40px] scale-90 opacity-0 z-0'
+                                            ? 'translate-x-0 scale-100 opacity-100 z-30'
+                                            : isNext
+                                                ? 'translate-x-[20px] scale-95 opacity-60 z-20'
+                                                : isPrev
+                                                    ? '-translate-x-[100%] scale-90 opacity-0 z-10'
+                                                    : 'translate-x-[40px] scale-90 opacity-0 z-0'
                                             }`}
                                         style={{
                                             transformOrigin: 'center right',
@@ -118,6 +118,33 @@ const SocialMediaSlider = () => {
                                                                 alt={`${slide.platform} metrics`}
                                                                 className="w-full h-full object-cover"
                                                             />
+                                                            {/* View count overlay - positioned at top right */}
+                                                            {slide.views && (
+                                                                <div className="absolute top-4 right-4 bg-black/70 backdrop-blur-sm px-3 py-2 rounded-full flex items-center gap-2 shadow-lg">
+                                                                    <svg
+                                                                        className="w-4 h-4 text-white"
+                                                                        fill="none"
+                                                                        stroke="currentColor"
+                                                                        viewBox="0 0 24 24"
+                                                                    >
+                                                                        <path
+                                                                            strokeLinecap="round"
+                                                                            strokeLinejoin="round"
+                                                                            strokeWidth={2}
+                                                                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                                                                        />
+                                                                        <path
+                                                                            strokeLinecap="round"
+                                                                            strokeLinejoin="round"
+                                                                            strokeWidth={2}
+                                                                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                                                                        />
+                                                                    </svg>
+                                                                    <span className="text-white font-semibold text-sm">
+                                                                        {slide.views}
+                                                                    </span>
+                                                                </div>
+                                                            )}
                                                             {slide.platform && (
                                                                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6">
                                                                     <p className="text-white font-bold text-xl">
@@ -165,8 +192,8 @@ const SocialMediaSlider = () => {
                                     key={index}
                                     onClick={() => setCurrentSlide(index)}
                                     className={`h-2 rounded-full transition-all duration-300 ${index === currentSlide
-                                            ? 'w-8 bg-purple-500'
-                                            : 'w-2 bg-white/30 hover:bg-white/50'
+                                        ? 'w-8 bg-purple-500'
+                                        : 'w-2 bg-white/30 hover:bg-white/50'
                                         }`}
                                     aria-label={`Go to slide ${index + 1}`}
                                 />
