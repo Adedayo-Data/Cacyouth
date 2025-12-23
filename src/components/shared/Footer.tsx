@@ -2,7 +2,7 @@ import { FaEnvelope, FaMapPin, FaPhone } from "react-icons/fa";
 
 const Footer = () => {
   return (
-    <div className="bg-purple-100 text-white ">
+    <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-teal-900 text-white ">
       <div className="mt-8 md:mt-0 md:order-1 py-5  flex md:flex-row flex-col items-center justify-between px-15 sm:space-y-1">
         <div className="text-center sm:space-y-2">
           <div className="flex justify-center md:justify-start mb-4">
@@ -17,7 +17,7 @@ const Footer = () => {
                   CACYOF
                 </span>
                 <span className="text-purple-300 text-sm font-medium tracking-wider uppercase">
-                  Medaiyese Region
+                  Medaiyese Regional Choir
                 </span>
               </div>
             </div>

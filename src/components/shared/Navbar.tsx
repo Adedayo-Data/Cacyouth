@@ -127,7 +127,7 @@ const Navbar = ({ onDonateClick }: NavbarProps) => {
                 CACYOF
               </span>
               <span className="text-purple-300 text-xs font-medium tracking-wider uppercase">
-                Medaiyese Region
+                Medaiyese Regional Choir
               </span>
             </div>
           </Link>
@@ -196,7 +196,7 @@ const Navbar = ({ onDonateClick }: NavbarProps) => {
               CACYOF
             </span>
             <span className="text-purple-300 text-[10px] font-medium tracking-wider uppercase">
-              Medaiyese Region
+              Medaiyese Regional Choir
             </span>
           </div>
         </Link>
