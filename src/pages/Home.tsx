@@ -5,6 +5,7 @@ import gsap from "gsap";
 import Partners from "../components/shared/Partners.tsx";
 import BrandValueSection from "../components/shared/BrandValueSection.tsx";
 import BrandOpportunities from "../components/shared/BrandOpportunities.tsx";
+import SocialMediaSlider from "../components/shared/SocialMediaSlider.tsx";
 import VanillaTilt from "vanilla-tilt";
 import { useNavigate } from "react-router-dom";
 
@@ -168,16 +169,18 @@ const Home = () => {
 
         <div className="relative z-10 h-full flex flex-col justify-center items-center px-4 text-center space-y-7 pt-20">
           <h1
-            className="text-white text-5xl font-black leading-tight tracking-tight  lg:text-[80px] text-center"
+            className="text-white text-6xl font-black leading-tight tracking-tight lg:text-[90px] text-center"
             id="head"
           >
             <span>
-              MEDAIYESE <br className="md:hidden" /> REGIONAL <br /> YOUTH CHOIR
-              (MRYC)
+              THE EMERGENCE <br /> CONCERT
             </span>
           </h1>
+          <p className="text-purple-300 text-xl lg:text-2xl font-medium tracking-wide">
+            By Medaiyese Regional Youth Choir
+          </p>
           <h2
-            className="text-white font-normal leading-normal  text-center max-w-3xl"
+            className="text-white text-xl lg:text-2xl font-normal leading-normal text-center max-w-3xl"
             id="sub"
           >
             A home where worshippers rise, Kingdom sounds
@@ -201,11 +204,11 @@ const Home = () => {
         >
           <div className="text-left">
             <div id="abt">
-              <h2 className="text-5xl font-bold leading-tight tracking-tight text-primary">
+              <h2 className="text-5xl lg:text-6xl font-bold leading-tight tracking-tight text-primary">
                 Who We Are
               </h2>
               <div className="mt-6 max-w-3xl">
-                <p className="text-sm leading-relaxed ">
+                <p className="text-base lg:text-lg leading-relaxed ">
                   The Medaiyese Regional Youth Choir (MRYC) of Christ Apostolic
                   Church <br /> Youth Fellowship, is a vibrant gathering of
                   young worshippers across <br /> Abuja, Niger, and Kaduna
@@ -245,11 +248,11 @@ const Home = () => {
               <h5 className="text-purple-500 font-bold tracking-widest uppercase mb-4 text-sm">
                 Flagship Event
               </h5>
-              <h2 className="text-5xl font-bold leading-tight tracking-tight text-primary">
+              <h2 className="text-5xl lg:text-6xl font-bold leading-tight tracking-tight text-primary">
                 The Emergence Concert
               </h2>
               <div className="mt-6 max-w-3xl">
-                <p className="text-sm leading-relaxed ">
+                <p className="text-base lg:text-lg leading-relaxed ">
                   Experience a night of powerful worship, divine encounters, and <br />
                   Kingdom sounds that transcend generations. The Emergence Concert <br />
                   is our flagship annual worship experience where heaven meets earth, <br />
@@ -337,6 +340,7 @@ const Home = () => {
       <Partners />
       <BrandValueSection />
       <BrandOpportunities />
+      <SocialMediaSlider />
     </div>
   );
 };

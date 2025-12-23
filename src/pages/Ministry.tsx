@@ -3,13 +3,14 @@
 import { useGSAP } from "@gsap/react";
 import { SplitText } from "gsap/all";
 import gsap from "gsap";
-import { FaPray, FaBible, FaMusic, FaHandHoldingHeart, FaArrowRight } from "react-icons/fa";
+import { FaPray, FaBible, FaMusic, FaHandHoldingHeart, FaArrowRight, FaCheckCircle } from "react-icons/fa";
 import { useEffect, useState } from "react";
 import VanillaTilt from "vanilla-tilt";
 import Button from "../components/ui/Button";
 import { createPortal } from "react-dom";
 import { useDonate } from "../components/shared/DonateContext";
 import { Link } from "react-router-dom";
+import GuestMinistersSlider from "../components/shared/GuestMinistersSlider";
 
 const Ministry = () => {
   const { openModal } = useDonate();
@@ -133,7 +134,106 @@ const Ministry = () => {
         </div>
       </section>
 
-      {/* Section 2: Emergence 2026 - Special Mission */}
+      {/* Section 2: What is Emergence Concert - Explanation */}
+      <section className="py-24 px-6 bg-gradient-to-b from-black-light to-black relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-96 h-96 bg-purple-600/10 rounded-full blur-[120px] pointer-events-none"></div>
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-600/10 rounded-full blur-[120px] pointer-events-none"></div>
+
+        <div className="max-w-7xl mx-auto">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+            {/* Left side - Image */}
+            <div className="relative order-2 lg:order-1">
+              <div className="absolute inset-0 bg-gradient-to-tr from-purple-600 to-blue-600 rounded-3xl transform -rotate-3 opacity-20 blur-lg"></div>
+              <img
+                src="/assets/4.jpg"
+                alt="Emergence Concert Worship"
+                className="relative rounded-3xl shadow-2xl border border-white/10 w-full object-cover aspect-4/3"
+              />
+            </div>
+
+            {/* Right side - Content */}
+            <div className="space-y-6 z-10 relative order-1 lg:order-2">
+              <div className="inline-block">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
+                  <span className="text-purple-400 font-semibold uppercase tracking-wider text-sm">
+                    About The Event
+                  </span>
+                </div>
+              </div>
+
+              <h2 className="text-4xl md:text-5xl font-bold text-white leading-tight">
+                What is the
+                <br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">
+                  Emergence Concert?
+                </span>
+              </h2>
+
+              <p className="text-xl text-gray-300 leading-relaxed">
+                The Emergence Concert is our annual flagship worship event that brings
+                thousands of young believers together for a night of revival, prophetic sound,
+                and supernatural encounters with God.
+              </p>
+
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <FaCheckCircle className="text-purple-500 text-xl mt-1 shrink-0" />
+                  <div>
+                    <h4 className="text-white font-bold mb-1">Transformative Worship</h4>
+                    <p className="text-gray-400 text-sm">
+                      Experience heaven-touching worship that ushers in God's manifest presence
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <FaCheckCircle className="text-purple-500 text-xl mt-1 shrink-0" />
+                  <div>
+                    <h4 className="text-white font-bold mb-1">Powerful Ministry</h4>
+                    <p className="text-gray-400 text-sm">
+                      Anointed ministers delivering life-changing messages and prophetic words
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <FaCheckCircle className="text-purple-500 text-xl mt-1 shrink-0" />
+                  <div>
+                    <h4 className="text-white font-bold mb-1">Kingdom Impact</h4>
+                    <p className="text-gray-400 text-sm">
+                      Testimonies of salvation, healing, deliverance, and divine encounters
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <FaCheckCircle className="text-purple-500 text-xl mt-1 shrink-0" />
+                  <div>
+                    <h4 className="text-white font-bold mb-1">Regional Unity</h4>
+                    <p className="text-gray-400 text-sm">
+                      Bringing together youth from across Abuja, Niger, and Kaduna states
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white/5 border border-white/10 rounded-xl p-6 mt-8">
+                <p className="text-gray-300 text-sm leading-relaxed italic">
+                  "From an explosive launch in 2024, the Emergence Concert has grown into a
+                  spiritual movement marked by testimonies, salvation, and deep encounters with God.
+                  This is more than a concert—it's a divine appointment."
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Section 3: Guest Ministers Slider */}
+      <GuestMinistersSlider />
+
+      {/* Section 4: Emergence 2026 - Special Mission */}
       <section className="py-24 px-6 bg-black-light relative overflow-hidden">
         <div className="absolute top-0 right-0 w-96 h-96 bg-purple-600/10 rounded-full blur-[120px] pointer-events-none"></div>
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-600/10 rounded-full blur-[120px] pointer-events-none"></div>

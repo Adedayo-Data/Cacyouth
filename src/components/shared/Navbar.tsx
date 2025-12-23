@@ -114,14 +114,22 @@ const Navbar = ({ onDonateClick }: NavbarProps) => {
           </Link>
         </ul>
 
-        {/* Center: Logo */}
+        {/* Center: Logo with Text */}
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-          <Link to="/">
+          <Link to="/" className="flex items-center gap-3 group">
             <img
-              src="/assets/CACYOF.png"
-              alt="CACYOF Medaiyese Logo"
-              className="h-24 w-auto object-contain"
+              src="/favicon.png"
+              alt="CAC Logo"
+              className="h-16 w-16 object-contain group-hover:scale-105 transition-transform duration-300"
             />
+            <div className="flex flex-col">
+              <span className="text-white font-bold text-2xl tracking-tight leading-tight">
+                CACYOF
+              </span>
+              <span className="text-purple-300 text-xs font-medium tracking-wider uppercase">
+                Medaiyese Region
+              </span>
+            </div>
           </Link>
         </div>
 
@@ -177,12 +185,20 @@ const Navbar = ({ onDonateClick }: NavbarProps) => {
 
       {/* Mobile Header */}
       <div className="md:hidden py-2 flex justify-between items-center px-4 relative z-50">
-        <Link to="/">
+        <Link to="/" className="flex items-center gap-2 group">
           <img
-            src="/assets/CACYOF.png"
-            alt="CACYOF Medaiyese Logo"
-            className="h-20 w-auto object-contain"
+            src="/favicon.png"
+            alt="CAC Logo"
+            className="h-12 w-12 object-contain group-hover:scale-105 transition-transform duration-300"
           />
+          <div className="flex flex-col">
+            <span className="text-white font-bold text-xl tracking-tight leading-tight">
+              CACYOF
+            </span>
+            <span className="text-purple-300 text-[10px] font-medium tracking-wider uppercase">
+              Medaiyese Region
+            </span>
+          </div>
         </Link>
         <button onClick={toggleMenu} className="text-white z-50">
           {isMenuOpen ? <FaTimes size={30} /> : <FaBars size={30} />}

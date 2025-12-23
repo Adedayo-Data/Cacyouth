@@ -1,25 +1,12 @@
-import { FaCheckCircle, FaInstagram, FaFacebook } from "react-icons/fa";
-import { BiTrendingUp } from "react-icons/bi";
-import { socialMetricsConfig } from "../../config/socialMetrics";
-import { useState, useEffect } from "react";
+import { FaCheckCircle } from "react-icons/fa";
 
 const BrandOpportunities = () => {
-    const [metricsLoaded, setMetricsLoaded] = useState(false);
-
     const benefits = [
         "A large, engaged youth community",
         "A high-impact worship and creative ministry",
         "A platform that promotes excellence, values, and purpose",
         "Life-changing outreach initiatives across the region",
     ];
-
-    // Simulate API loading for metrics
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            setMetricsLoaded(true);
-        }, 800);
-        return () => clearTimeout(timer);
-    }, []);
 
     return (
         <section className="py-24 px-6 bg-black-light border-y border-white/5">
@@ -38,73 +25,6 @@ const BrandOpportunities = () => {
                             a positive, faith-driven audience and support meaningful community
                             transformation.
                         </p>
-
-                        {/* Social Media Metrics - Compact Version */}
-                        <div className="bg-white/5 p-6 rounded-2xl border border-white/10 mb-6">
-                            <div className="flex items-center gap-2 mb-4">
-                                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                                <h3 className="text-lg font-bold text-white">Our Reach & Impact</h3>
-                            </div>
-
-                            {!metricsLoaded ? (
-                                <div className="grid grid-cols-2 gap-4">
-                                    {[1, 2].map((i) => (
-                                        <div key={i} className="bg-white/5 p-4 rounded-xl animate-pulse">
-                                            <div className="h-4 w-16 bg-white/10 rounded mb-2"></div>
-                                            <div className="h-6 w-20 bg-white/10 rounded"></div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="grid grid-cols-2 gap-4">
-                                    {/* Instagram */}
-                                    <div className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 p-4 rounded-xl border border-purple-500/20 hover:border-purple-500/40 transition-all group">
-                                        <div className="flex items-center gap-2 mb-3">
-                                            <div className="w-8 h-8 bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500 rounded-lg flex items-center justify-center">
-                                                <FaInstagram className="text-white text-sm" />
-                                            </div>
-                                            <span className="text-xs text-gray-400">Instagram</span>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <div>
-                                                <p className="text-xs text-gray-400 uppercase tracking-wider">Followers</p>
-                                                <p className="text-2xl font-bold text-white">{socialMetricsConfig.instagram.metrics.followers}</p>
-                                            </div>
-                                            <div className="flex items-center gap-1 text-xs">
-                                                <BiTrendingUp className="text-green-400" />
-                                                <span className="text-green-400 font-medium">{socialMetricsConfig.instagram.growth.percentage}</span>
-                                                <span className="text-gray-500">growth</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Facebook */}
-                                    <div className="bg-gradient-to-br from-blue-500/10 to-blue-600/10 p-4 rounded-xl border border-blue-500/20 hover:border-blue-500/40 transition-all group">
-                                        <div className="flex items-center gap-2 mb-3">
-                                            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-400 rounded-lg flex items-center justify-center">
-                                                <FaFacebook className="text-white text-sm" />
-                                            </div>
-                                            <span className="text-xs text-gray-400">Facebook</span>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <div>
-                                                <p className="text-xs text-gray-400 uppercase tracking-wider">Followers</p>
-                                                <p className="text-2xl font-bold text-white">{socialMetricsConfig.facebook.metrics.followers}</p>
-                                            </div>
-                                            <div className="flex items-center gap-1 text-xs">
-                                                <BiTrendingUp className="text-green-400" />
-                                                <span className="text-green-400 font-medium">{socialMetricsConfig.facebook.growth.percentage}</span>
-                                                <span className="text-gray-500">growth</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            <p className="text-xs text-gray-500 mt-3 text-center">
-                                Combined reach of {metricsLoaded ? `${socialMetricsConfig.instagram.metrics.reach} + ${socialMetricsConfig.facebook.metrics.reach}` : '...'} monthly
-                            </p>
-                        </div>
 
                         <div className="bg-white/5 p-8 rounded-2xl border border-white/10">
                             <h3 className="text-xl font-bold text-white mb-6">
