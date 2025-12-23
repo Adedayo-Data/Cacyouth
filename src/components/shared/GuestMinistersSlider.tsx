@@ -60,22 +60,22 @@ const GuestMinistersSlider = () => {
                         </div>
 
                         <h2 className="text-4xl md:text-5xl font-bold text-white leading-tight">
-                            Anointed Ministers
+                            Honored Guests
                             <br />
                             <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">
-                                Leading Us
+                                Who Ministered With Us
                             </span>
                         </h2>
 
                         <p className="text-xl text-gray-300 leading-relaxed">
-                            We are honored to host powerful men and women of God who will minister
-                            the Word, lead worship, and facilitate divine encounters at the Emergence Concert.
+                            Over the years, we have been blessed to host powerful men and women of God
+                            who have ministered the Word, led worship, and facilitated divine encounters at our programs.
                         </p>
 
                         <div className="bg-white/5 border border-white/10 rounded-xl p-6">
                             <p className="text-gray-400 text-sm leading-relaxed">
-                                Each minister brings a unique anointing and message that will inspire,
-                                challenge, and transform lives. Join us as we sit under their ministry.
+                                Each minister brought a unique anointing and message that inspired,
+                                challenged, and transformed lives. We are grateful for their ministry and impact on our community.
                             </p>
                         </div>
                     </div>
