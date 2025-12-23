@@ -92,29 +92,69 @@ const Partners = () => {
     });
   });
   return (
-    <section className="py-16 sm:py-24 bg-purple-100" id="packages">
+    <section className="py-16 sm:py-24 bg-gradient-to-b from-black-light to-slate-900 relative overflow-hidden" id="packages">
+      {/* Background decorative elements */}
+      <div className="absolute top-0 left-0 w-96 h-96 bg-purple-600/10 rounded-full blur-[120px] pointer-events-none"></div>
+      <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-600/10 rounded-full blur-[120px] pointer-events-none"></div>
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12" id="pack">
-          <h2 className="text-3xl font-bold leading-tight tracking-tight text-primary sm:text-4xl">
+        <div className="text-center mb-12 relative z-10" id="pack">
+          <h2 className="text-3xl font-bold leading-tight tracking-tight text-white sm:text-4xl">
             PARTNER WITH US
           </h2>
-          <p className="mt-4 text-lg text-text-light-muted dark:text-text-dark-muted max-w-2xl mx-auto">
+          <p className="mt-4 text-lg text-gray-300 max-w-2xl mx-auto">
             Together, we can raise a generation of skilled, Spirit-filled
-            worshippers and extend the sound of God’s kingdom across the region.
+            worshippers and extend the sound of God's kingdom across the region.
           </p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
-          {partnerData.map((partner, index) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10 auto-rows-fr">
+          {/* Kingdom Impact - Full Width */}
+          <div className="md:col-span-2">
             <PartnerCard
-              key={index}
-              icon={partner.icon}
-              title={partner.title}
-              priceRange={partner.priceRange}
-              description={partner.description}
-              features={partner.features}
-              className="partner-card"
+              icon={partnerData[0].icon}
+              title={partnerData[0].title}
+              priceRange={partnerData[0].priceRange}
+              description={partnerData[0].description}
+              features={partnerData[0].features}
+              className="partner-card h-full"
             />
-          ))}
+          </div>
+
+          {/* Legacy Builder - Half Width */}
+          <div className="md:col-span-1">
+            <PartnerCard
+              icon={partnerData[1].icon}
+              title={partnerData[1].title}
+              priceRange={partnerData[1].priceRange}
+              description={partnerData[1].description}
+              features={partnerData[1].features}
+              className="partner-card h-full"
+            />
+          </div>
+
+          {/* Friends of Fellowship - Half Width */}
+          <div className="md:col-span-1">
+            <PartnerCard
+              icon={partnerData[2].icon}
+              title={partnerData[2].title}
+              priceRange={partnerData[2].priceRange}
+              description={partnerData[2].description}
+              features={partnerData[2].features}
+              className="partner-card h-full"
+            />
+          </div>
+
+          {/* In-Kind Supporters - Full Width */}
+          <div className="md:col-span-2">
+            <PartnerCard
+              icon={partnerData[3].icon}
+              title={partnerData[3].title}
+              priceRange={partnerData[3].priceRange}
+              description={partnerData[3].description}
+              features={partnerData[3].features}
+              className="partner-card h-full"
+            />
+          </div>
         </div>
       </div>
     </section>
