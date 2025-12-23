@@ -176,8 +176,8 @@ const Home = () => {
               THE EMERGENCE <br /> CONCERT
             </span>
           </h1>
-          <p className="text-purple-300 text-xl lg:text-2xl font-medium tracking-wide">
-            By Medaiyese Regional Youth Choir
+          <p className="text-amber-400 text-xl lg:text-2xl font-medium tracking-wide">
+            Medaiyese Regional Youth Choir
           </p>
           <h2
             className="text-white text-xl lg:text-2xl font-normal leading-normal text-center max-w-3xl"
@@ -208,15 +208,14 @@ const Home = () => {
                 Who We Are
               </h2>
               <div className="mt-6 max-w-3xl">
-                <p className="text-base lg:text-lg leading-relaxed ">
+                <p className="text-base lg:text-lg leading-relaxed">
                   The Medaiyese Regional Youth Choir (MRYC) of Christ Apostolic
-                  Church <br /> Youth Fellowship, is a vibrant gathering of
-                  young worshippers across <br /> Abuja, Niger, and Kaduna
-                  states, committed to advancing the Gospel <br /> through
-                  excellence in music, service, and spiritual growth. <br /> We
+                  Church Youth Fellowship, is a vibrant gathering of
+                  young worshippers across Abuja, Niger, and Kaduna
+                  states, committed to advancing the Gospel through
+                  excellence in music, service, and spiritual growth. We
                   exist to inspire revival, nurture talent, and build a unified
-                  worship <br />
-                  culture across the region.
+                  worship culture across the region.
                 </p>
               </div>
               <Button
@@ -252,12 +251,12 @@ const Home = () => {
                 The Emergence Concert
               </h2>
               <div className="mt-6 max-w-3xl">
-                <p className="text-base lg:text-lg leading-relaxed ">
-                  Experience a night of powerful worship, divine encounters, and <br />
-                  Kingdom sounds that transcend generations. The Emergence Concert <br />
-                  is our flagship annual worship experience where heaven meets earth, <br />
-                  and lives are transformed through the presence of God. Join us as we <br />
-                  gather worshippers from across the region for an unforgettable <br />
+                <p className="text-base lg:text-lg leading-relaxed">
+                  Experience a night of powerful worship, divine encounters, and
+                  Kingdom sounds that transcend generations. The Emergence Concert
+                  is our flagship annual worship experience where heaven meets earth,
+                  and lives are transformed through the presence of God. Join us as we
+                  gather worshippers from across the region for an unforgettable
                   celebration of faith, music, and unity.
                 </p>
               </div>
@@ -337,10 +336,10 @@ const Home = () => {
         </div>
       </section>
 
+      <SocialMediaSlider />
       <Partners />
       <BrandValueSection />
       <BrandOpportunities />
-      <SocialMediaSlider />
     </div>
   );
 };
