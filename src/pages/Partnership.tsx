@@ -19,7 +19,7 @@ const partnerData = [
     {
         icon: MdDiamond,
         title: "Kingdom Impact Partner",
-        priceRange: "₦1,000,000 and above",
+        priceRange: "₦250,000 and above",
         description:
             "For partners who want to sow deeply into what God is doing through this ministry.",
         features: [
@@ -37,7 +37,7 @@ const partnerData = [
     {
         icon: MdWorkspacePremium,
         title: "Legacy Builder Partner",
-        priceRange: "₦500,000 — ₦1,000,000",
+        priceRange: "₦150,000 — ₦200,000",
         description:
             "For partners who want to stand visibly with this vision and help strengthen its reach.",
         features: [
@@ -54,7 +54,7 @@ const partnerData = [
     {
         icon: MdFavorite,
         title: "Friends of the Fellowship",
-        priceRange: "₦100,000 — ₦500,000",
+        priceRange: "₦50,000 — ₦100,000",
         description:
             "For partners who want to support and be part of what God is building.",
         features: [
