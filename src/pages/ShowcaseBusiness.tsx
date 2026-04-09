@@ -3,11 +3,6 @@ import { SplitText } from "gsap/all";
 import gsap from "gsap";
 import { useState } from "react";
 import Button from "../components/ui/Button";
-import {
-  FaBullhorn,
-  FaUsers,
-  FaAward,
-} from "react-icons/fa";
 
 const NIGERIAN_STATES = [
   "Abia",
@@ -49,23 +44,6 @@ const NIGERIAN_STATES = [
   "Zamfara",
 ];
 
-const benefitCards = [
-  {
-    icon: FaBullhorn,
-    title: "Event Spotlight",
-    desc: "Your business gets featured and announced before a live audience at our ministry event.",
-  },
-  {
-    icon: FaUsers,
-    title: "Wide Reach",
-    desc: "Gain exposure to thousands of attendees, digital viewers, and our active online community.",
-  },
-  {
-    icon: FaAward,
-    title: "Brand Credibility",
-    desc: "Align your brand with a trusted, spirit-filled movement that people believe in.",
-  },
-];
 
 const ShowcaseBusiness = () => {
   const [formData, setFormData] = useState({
@@ -346,29 +324,6 @@ const ShowcaseBusiness = () => {
             </form>
           </div>
         </div>
-
-        {/* ── Benefit Strips ── */}
-        {/* <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mt-12">
-          <h3 className="text-center text-xl font-bold text-white mb-6">What You Get</h3>
-          <div className="grid sm:grid-cols-3 gap-6">
-            {benefitCards.map((card, i) => (
-              <div
-                key={i}
-                className="benefit-card bg-white/5 backdrop-blur-md border border-white/10 p-6 rounded-2xl hover:bg-white/10 hover:border-purple-500/40 transition-all duration-300 group"
-              >
-                <div className="p-3 bg-purple-500/10 rounded-xl w-fit mb-4 group-hover:bg-purple-500/20 transition-colors">
-                  <card.icon className="text-2xl text-purple-400" />
-                </div>
-                <h3 className="text-lg font-bold text-white mb-2">
-                  {card.title}
-                </h3>
-                <p className="text-gray-400 text-sm leading-relaxed">
-                  {card.desc}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div> */}
       </div>
     </section>
   );
