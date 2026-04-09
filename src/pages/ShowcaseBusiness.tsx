@@ -187,9 +187,9 @@ const ShowcaseBusiness = () => {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-purple-900/5 rounded-full blur-[140px]" />
       </div>
 
-      <div className="relative z-10 pt-32 pb-24">
+      <div className="relative z-10 pt-24 pb-24">
         {/* ── Hero ── */}
-        <div className="text-center mb-20 px-4">
+        <div className="text-center mb-6 px-4">
           <p className="text-purple-400 font-semibold tracking-widest uppercase text-sm mb-4">
             CACYOF Event Series
           </p>
@@ -214,28 +214,6 @@ const ShowcaseBusiness = () => {
           </p>
         </div>
 
-        {/* ── Benefit Strips ── */}
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mb-20">
-          <div className="grid sm:grid-cols-3 gap-6">
-            {benefitCards.map((card, i) => (
-              <div
-                key={i}
-                className="benefit-card bg-white/5 backdrop-blur-md border border-white/10 p-6 rounded-2xl hover:bg-white/10 hover:border-purple-500/40 transition-all duration-300 group"
-              >
-                <div className="p-3 bg-purple-500/10 rounded-xl w-fit mb-4 group-hover:bg-purple-500/20 transition-colors">
-                  <card.icon className="text-2xl text-purple-400" />
-                </div>
-                <h3 className="text-lg font-bold text-white mb-2">
-                  {card.title}
-                </h3>
-                <p className="text-gray-400 text-sm leading-relaxed">
-                  {card.desc}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-
         {/* ── Form ── */}
         <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-8 md:p-10 rounded-3xl shadow-2xl">
@@ -251,11 +229,10 @@ const ShowcaseBusiness = () => {
               {/* Status message */}
               {submitStatus.type && (
                 <div
-                  className={`p-4 rounded-xl text-sm ${
-                    submitStatus.type === "success"
-                      ? "bg-green-500/20 border border-green-500/50 text-green-300"
-                      : "bg-red-500/20 border border-red-500/50 text-red-300"
-                  }`}
+                  className={`p-4 rounded-xl text-sm ${submitStatus.type === "success"
+                    ? "bg-green-500/20 border border-green-500/50 text-green-300"
+                    : "bg-red-500/20 border border-red-500/50 text-red-300"
+                    }`}
                 >
                   {submitStatus.message}
                 </div>
@@ -277,7 +254,7 @@ const ShowcaseBusiness = () => {
                   onChange={handleChange}
                   required
                   disabled={isSubmitting}
-                  placeholder="e.g. John Adebayo"
+                  placeholder="e.g. Temi Adedayo"
                   className="w-full px-4 py-4 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
@@ -360,16 +337,38 @@ const ShowcaseBusiness = () => {
               <div className="form-group pt-2">
                 <Button
                   title={isSubmitting ? "Submitting…" : "Submit Registration"}
-                  containerClass={`w-full ${
-                    isSubmitting
-                      ? "bg-purple-600/50 cursor-not-allowed"
-                      : "bg-purple-600 hover:bg-purple-700"
-                  } text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-purple-600/30 transition-all duration-300 transform hover:-translate-y-1`}
+                  containerClass={`w-full ${isSubmitting
+                    ? "bg-purple-600/50 cursor-not-allowed"
+                    : "bg-purple-600 hover:bg-purple-700"
+                    } text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-purple-600/30 transition-all duration-300 transform hover:-translate-y-1`}
                 />
               </div>
             </form>
           </div>
         </div>
+
+        {/* ── Benefit Strips ── */}
+        {/* <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mt-12">
+          <h3 className="text-center text-xl font-bold text-white mb-6">What You Get</h3>
+          <div className="grid sm:grid-cols-3 gap-6">
+            {benefitCards.map((card, i) => (
+              <div
+                key={i}
+                className="benefit-card bg-white/5 backdrop-blur-md border border-white/10 p-6 rounded-2xl hover:bg-white/10 hover:border-purple-500/40 transition-all duration-300 group"
+              >
+                <div className="p-3 bg-purple-500/10 rounded-xl w-fit mb-4 group-hover:bg-purple-500/20 transition-colors">
+                  <card.icon className="text-2xl text-purple-400" />
+                </div>
+                <h3 className="text-lg font-bold text-white mb-2">
+                  {card.title}
+                </h3>
+                <p className="text-gray-400 text-sm leading-relaxed">
+                  {card.desc}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div> */}
       </div>
     </section>
   );
