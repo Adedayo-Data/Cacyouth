@@ -49,6 +49,7 @@ const ShowcaseBusiness = () => {
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
+    phone: "",
     state: "",
     businessDescription: "",
   });
@@ -82,6 +83,7 @@ const ShowcaseBusiness = () => {
           access_key: "b0e5369a-c015-4a71-8df5-eafbe3e2276f",
           name: formData.fullName,
           email: formData.email,
+          phone: formData.phone,
           state: formData.state,
           message: formData.businessDescription,
           subject: "Business Showcase Registration – CACYOF Event",
@@ -99,6 +101,7 @@ const ShowcaseBusiness = () => {
         setFormData({
           fullName: "",
           email: "",
+          phone: "",
           state: "",
           businessDescription: "",
         });
@@ -250,6 +253,27 @@ const ShowcaseBusiness = () => {
                   id="email"
                   name="email"
                   value={formData.email}
+                  onChange={handleChange}
+                  required
+                  disabled={isSubmitting}
+                  placeholder="you@example.com"
+                  className="w-full px-4 py-4 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+              </div>
+
+              {/* Phone */}
+              <div className="form-group">
+                <label
+                  htmlFor="phone"
+                  className="block text-sm font-medium text-gray-300 mb-2"
+                >
+                  Phone Number
+                </label>
+                <input
+                  type="text"
+                  id="phone"
+                  name="phone"
+                  value={formData.phone}
                   onChange={handleChange}
                   required
                   disabled={isSubmitting}
