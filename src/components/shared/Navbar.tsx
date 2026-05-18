@@ -115,6 +115,9 @@ const Navbar = ({ onDonateClick }: NavbarProps) => {
           <Link to="/showcase">
             <li className="nav-hover-btn !ml-0">Showcase</li>
           </Link>
+          <Link to="/conference">
+            <li className="nav-hover-btn !ml-0 text-amber-400 font-semibold">Conference</li>
+          </Link>
         </ul>
 
         {/* Center: Logo with Text */}
@@ -247,6 +250,11 @@ const Navbar = ({ onDonateClick }: NavbarProps) => {
           <Link to="/showcase" onClick={closeMenu}>
             <li className="mobile-nav-link hover:text-purple-400 transition-colors">
               Showcase
+            </li>
+          </Link>
+          <Link to="/conference" onClick={closeMenu}>
+            <li className="mobile-nav-link text-amber-400 hover:text-amber-300 transition-colors font-semibold">
+              Conference
             </li>
           </Link>
           <button

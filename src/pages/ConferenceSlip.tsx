@@ -1,0 +1,157 @@
+import { useLocation, useNavigate } from 'react-router-dom';
+
+interface SlipState {
+  name: string;
+  uniqueCode: string;
+  state: string;
+}
+
+const STATE_LABELS: Record<string, string> = {
+  FCT: 'FCT — Abuja',
+  NIGER: 'Niger State',
+  KADUNA: 'Kaduna State',
+};
+
+const ConferenceSlip = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const slipData = location.state as SlipState | null;
+
+  if (!slipData) {
+    return (
+      <div className="min-h-screen bg-black-light flex flex-col items-center justify-center gap-5 px-4">
+        <p className="text-white text-lg text-center">
+          No registration data found. Please complete registration first.
+        </p>
+        <button
+          onClick={() => navigate('/conference')}
+          className="px-8 py-3 bg-purple-100 hover:bg-purple-700 rounded-xl text-white font-bold transition-colors"
+        >
+          Go to Registration
+        </button>
+      </div>
+    );
+  }
+
+  const registrationDate = new Date().toLocaleDateString('en-NG', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+
+  return (
+    <>
+      {/* Print-only styles */}
+      <style>{`
+        @media print {
+          .no-print { display: none !important; }
+          .print-page { background: white; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+          .slip-card { box-shadow: none !important; border: 1px solid #e5e7eb !important; }
+        }
+        @media screen {
+          .print-page { background-color: #0D1B2A; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem 1rem; }
+        }
+      `}</style>
+
+      <div className="print-page">
+
+        {/* Action buttons — hidden on print */}
+        <div className="no-print flex flex-col sm:flex-row gap-3 mb-6 w-full max-w-md">
+          <button
+            onClick={() => window.print()}
+            className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-white bg-purple-100 hover:bg-purple-700 active:scale-95 transition-all duration-200 text-base"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+            </svg>
+            Print Slip
+          </button>
+          <button
+            onClick={() => navigate('/')}
+            className="flex-1 py-3.5 rounded-xl font-semibold text-gray-300 border border-white/20 hover:border-white/40 active:scale-95 transition-all duration-200 text-base"
+          >
+            Back to Home
+          </button>
+        </div>
+
+        {/* ── Registration Slip ── */}
+        <div className="slip-card bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+
+          {/* Purple header band */}
+          <div className="bg-purple-100 px-6 py-5 text-center">
+            <img
+              src="/favicon.png"
+              alt="CACYOF Logo"
+              className="h-14 w-14 mx-auto mb-2 object-contain"
+            />
+            <h1 className="text-white font-black text-base sm:text-lg tracking-wide uppercase">
+              Christ Apostolic Church
+            </h1>
+            <p className="text-purple-200 text-xs sm:text-sm font-medium tracking-wider uppercase mt-0.5">
+              Youth Fellowship · Medaiyese Region
+            </p>
+          </div>
+
+          {/* Slip body */}
+          <div className="px-6 py-7">
+
+            {/* Title */}
+            <div className="text-center mb-6">
+              <p className="text-gray-400 text-xs uppercase tracking-widest font-semibold">
+                2026 Youth Conference Registration Slip
+              </p>
+              <div className="mt-2 h-0.5 w-16 bg-purple-200 mx-auto rounded-full" />
+            </div>
+
+            {/* Details */}
+            <div className="space-y-3 mb-7">
+              <div className="flex justify-between items-start gap-3 py-2.5 border-b border-gray-100">
+                <span className="text-gray-400 text-sm shrink-0">Name</span>
+                <span className="text-gray-900 font-bold text-sm text-right">{slipData.name}</span>
+              </div>
+              <div className="flex justify-between items-center gap-3 py-2.5 border-b border-gray-100">
+                <span className="text-gray-400 text-sm shrink-0">State</span>
+                <span className="text-gray-900 font-semibold text-sm">{STATE_LABELS[slipData.state] ?? slipData.state}</span>
+              </div>
+              <div className="flex justify-between items-center gap-3 py-2.5">
+                <span className="text-gray-400 text-sm shrink-0">Date</span>
+                <span className="text-gray-600 text-xs text-right">{registrationDate}</span>
+              </div>
+            </div>
+
+            {/* ── The big unique code ── */}
+            <div className="bg-gray-50 border-2 border-dashed border-purple-200 rounded-2xl py-8 px-4 mb-6 text-center">
+              <p className="text-gray-400 text-xs uppercase tracking-widest font-semibold mb-3">
+                Admission Code
+              </p>
+              <p className="text-4xl sm:text-5xl font-black tracking-[0.15em] text-gray-900 font-mono break-all">
+                {slipData.uniqueCode}
+              </p>
+              <p className="text-gray-400 text-xs mt-3">
+                Present this code at the venue for verification
+              </p>
+            </div>
+
+            {/* Footer note */}
+            <p className="text-gray-400 text-xs text-center leading-relaxed">
+              This slip is your proof of registration. Keep it safe and present it upon arrival.
+            </p>
+          </div>
+
+          {/* Bottom band */}
+          <div className="bg-gray-50 px-6 py-3 text-center">
+            <p className="text-gray-400 text-xs">mryc.online · Medaiyese Regional Youth Choir</p>
+          </div>
+        </div>
+
+        <p className="no-print text-gray-500 text-xs text-center mt-5 max-w-sm">
+          Screenshot this page or use the Print button above to save your slip.
+        </p>
+      </div>
+    </>
+  );
+};
+
+export default ConferenceSlip;
