@@ -44,6 +44,20 @@ body {
     color: transparent;
 }
 
+/* Dark-themed native date picker */
+input[type="date"] {
+  color-scheme: dark;
+}
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.7) sepia(1) saturate(3) hue-rotate(200deg);
+  cursor: pointer;
+  opacity: 0.8;
+  scale: 1.2;
+}
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
 @layer components {
     .noisy {
         @apply absolute inset-0 size-full bg-[url("/images/noise.png")];
