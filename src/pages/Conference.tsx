@@ -119,9 +119,15 @@ const Conference = () => {
 
   const fullName = [form.firstName, form.middleName, form.lastName].filter(Boolean).join(' ');
 
+  // When "Other" is selected, dccZone holds the actual Nigerian state (e.g. "Lagos").
+  // Use that in the code so it reads MRY/LAGOS/... not MRY/OTHER/...
+  const stateForCode = form.state === 'OTHER'
+    ? form.dccZone.toUpperCase()
+    : (form.state as string);
+
   const handleTestSkip = () => {
     if (!validateStep(step)) return;
-    const uniqueCode = generateUniqueCode(form.state as SelectedState);
+    const uniqueCode = generateUniqueCode(stateForCode);
     navigate('/conference/slip', { state: { ...form, name: fullName, uniqueCode } });
   };
 
@@ -129,7 +135,7 @@ const Conference = () => {
     if (!validateStep(3)) return;
     setLoading(true);
     try {
-      const uniqueCode = generateUniqueCode(form.state as SelectedState);
+      const uniqueCode = generateUniqueCode(stateForCode);
       const res = await fetch(`${API}/api/payment/initiate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

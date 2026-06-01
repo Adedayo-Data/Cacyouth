@@ -5,14 +5,19 @@ interface SlipState {
   uniqueCode: string;
   state: string;
   phone?: string;
+  dccZone?: string;
 }
 
 const STATE_LABELS: Record<string, string> = {
   FCT: 'FCT — Abuja',
   NIGER: 'Niger State',
   KADUNA: 'Kaduna State',
-  OTHER: 'Other State',
 };
+
+function resolveState(slip: SlipState): string {
+  if (slip.state === 'OTHER' && slip.dccZone) return `${slip.dccZone} State`;
+  return STATE_LABELS[slip.state] ?? slip.state;
+}
 
 const Row = ({ label, value }: { label: string; value?: string }) => {
   if (!value) return null;
@@ -110,7 +115,7 @@ const ConferenceSlip = () => {
             {/* Registrant details */}
             <div className="mb-7">
               <Row label="Full Name" value={slip.name} />
-              <Row label="State"     value={STATE_LABELS[slip.state] ?? slip.state} />
+              <Row label="State"     value={resolveState(slip)} />
               <Row label="Phone"     value={slip.phone} />
             </div>
 

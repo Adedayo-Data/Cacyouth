@@ -6,6 +6,7 @@ const API = import.meta.env.VITE_API_URL ?? '';
 interface RegData {
   name: string;
   state: string;
+  dccZone: string;
   phone: string;
   uniqueCode: string;
   paymentStatus: string;
@@ -44,6 +45,7 @@ const PaymentReturn = () => {
             state: {
               name: data.name,
               state: data.state,
+              dccZone: data.dccZone,
               phone: data.phone,
               uniqueCode: data.uniqueCode,
             },
