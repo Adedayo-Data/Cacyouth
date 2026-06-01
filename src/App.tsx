@@ -11,6 +11,7 @@ import Partnership from "./pages/Partnership.tsx";
 import ShowcaseBusiness from "./pages/ShowcaseBusiness.tsx";
 import Conference from "./pages/Conference.tsx";
 import ConferenceSlip from "./pages/ConferenceSlip.tsx";
+import PaymentReturn from "./pages/PaymentReturn.tsx";
 import AdminConsole from "./pages/AdminConsole.tsx";
 import StaffPortal from "./pages/StaffPortal.tsx";
 import { DonateProvider } from "./components/shared/DonateContext.tsx";
@@ -24,6 +25,7 @@ const App = () => {
         {/* Admin & Staff — standalone, no navbar/footer */}
         <Route path="/admin" element={<AdminConsole />} />
         <Route path="/staff" element={<StaffPortal />} />
+        <Route path="/payment/return" element={<PaymentReturn />} />
 
         <Route element={<PageLayout />}>
           <Route path="/" element={<Home />} />

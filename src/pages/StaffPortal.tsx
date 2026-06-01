@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { collection, getDocs, updateDoc, doc, query, orderBy, where } from 'firebase/firestore';
-import { db } from '../config/firebase';
+
+const API = import.meta.env.VITE_API_URL ?? '';
 
 interface Registration {
   id: string;
@@ -75,27 +75,21 @@ const StaffPortal = () => {
   const [verifying, setVerifying] = useState<string | null>(null);
 
   /* ── Login ── */
-  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const handleLogin = async () => {
     setLoggingIn(true);
     setLoginError('');
     try {
-      const q = query(collection(db, 'staff'), where('username', '==', username.trim()));
-      const snap = await getDocs(q);
-      if (snap.empty) { setLoginError('Invalid username or password.'); return; }
-      const staffDoc = snap.docs[0];
-      const staffData = staffDoc.data();
-      if (staffData.password !== password) { setLoginError('Invalid username or password.'); return; }
-      const sess: StaffSession = {
-        id: staffDoc.id,
-        name: staffData.name,
-        username: staffData.username,
-        state: staffData.state,
-      };
+      const res = await fetch(`${API}/api/staff/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username.trim(), password }),
+      });
+      if (res.status === 401) { setLoginError('Invalid username or password.'); return; }
+      if (!res.ok) throw new Error('Login error');
+      const sess: StaffSession = await res.json();
       sessionStorage.setItem('cac_staff', JSON.stringify(sess));
       setSession(sess);
-    } catch (err) {
-      console.error(err);
+    } catch {
       setLoginError('An error occurred. Please try again.');
     } finally {
       setLoggingIn(false);
@@ -110,15 +104,14 @@ const StaffPortal = () => {
 
   /* ── Fetch registrations for this state ── */
   const fetchRegistrations = async (state: string) => {
+    if (!session) return;
     setLoading(true);
     try {
-      const q = query(
-        collection(db, 'registrations'),
-        where('state', '==', state),
-        orderBy('registeredAt', 'desc')
-      );
-      const snap = await getDocs(q);
-      setRegistrations(snap.docs.map(d => ({ id: d.id, ...d.data() } as Registration)));
+      const res = await fetch(`${API}/api/registrations/state/${state}`, {
+        headers: { 'x-staff-id': session.id },
+      });
+      if (!res.ok) throw new Error('Fetch failed');
+      setRegistrations(await res.json());
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   };
@@ -129,17 +122,16 @@ const StaffPortal = () => {
 
   /* ── Verify ── */
   const handleVerify = async (reg: Registration) => {
+    if (!session) return;
     setVerifying(reg.id);
     try {
-      const ref = doc(db, 'registrations', reg.id);
-      if (reg.verified) {
-        await updateDoc(ref, { verified: false });
-        setRegistrations(prev => prev.map(r => r.id === reg.id ? { ...r, verified: false, verifiedAt: undefined } : r));
-      } else {
-        const verifiedAt = new Date().toISOString();
-        await updateDoc(ref, { verified: true, verifiedAt });
-        setRegistrations(prev => prev.map(r => r.id === reg.id ? { ...r, verified: true, verifiedAt } : r));
-      }
+      const res = await fetch(`${API}/api/registrations/${reg.id}/verify`, {
+        method: 'PATCH',
+        headers: { 'x-staff-id': session.id },
+      });
+      if (!res.ok) throw new Error('Verify failed');
+      const updated: Registration = await res.json();
+      setRegistrations(prev => prev.map(r => r.id === reg.id ? updated : r));
     } catch (err) { console.error(err); }
     finally { setVerifying(null); }
   };
@@ -167,7 +159,7 @@ const StaffPortal = () => {
             <p className="text-gray-400 text-sm mt-1">CACYOF 2026 Youth Conference</p>
           </div>
 
-          <form onSubmit={handleLogin} className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4">
+          <form onSubmit={e => { e.preventDefault(); handleLogin(); }} className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4">
             <div>
               <label className="block text-gray-300 text-sm font-semibold mb-2">Username</label>
               <input
@@ -232,7 +224,7 @@ const StaffPortal = () => {
         </div>
         <div className="flex gap-2 items-center shrink-0">
           <button
-            onClick={() => fetchRegistrations(session.state)}
+            onClick={() => session && fetchRegistrations(session.state)}
             className="px-3 sm:px-4 py-2 text-xs sm:text-sm border border-white/20 hover:border-purple-400 rounded-lg transition-colors"
           >
             Refresh

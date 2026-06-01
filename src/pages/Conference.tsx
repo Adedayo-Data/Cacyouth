@@ -1,20 +1,37 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, addDoc } from 'firebase/firestore';
-import { db } from '../config/firebase';
 import { generateUniqueCode } from '../utils/codeGenerator';
+
+const API = import.meta.env.VITE_API_URL ?? '';
 
 const CONFERENCE_FEE = 3000;
 
-declare global {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  interface Window { FlutterwaveCheckout?: (config: any) => void; }
-}
+type SelectedState = 'FCT' | 'NIGER' | 'KADUNA' | 'OTHER';
 
-type SelectedState = 'FCT' | 'NIGER' | 'KADUNA';
+const ZONES_BY_STATE: Record<Exclude<SelectedState, 'OTHER'>, string[]> = {
+  FCT: [
+    'FCC DCC', 'ADCC DCC', 'NYANYA DCC', 'GWAGWALADA DCC', 'KUJE DCC',
+    'L/WATER DCC', 'KUBWA DCC', 'BWARI ZONE', 'LUGBE DCC', 'PRINCE OF PEACE ZONE',
+    'KWALI ZONE', 'MERCY ZONE', 'MARABA ZONE', 'MAPAPE ZONE', 'OKEIYIN ZONE',
+    'CHRIST THE KING DCC', 'KARU DCC', 'MIRACLE DCC', 'DUTSE DCC', 'GLORY ZONE',
+    'ALL SAINT DCC', 'PRAISE DCC DCC', 'DAGIRI ZONE', 'TRUTH AND POWER ZONE',
+    'ADO ZONE', 'FULFILMENT ZONE', 'NEW LIFE ZONE', 'PASALI ZONE',
+    'POSSIBILITY ZONE', 'SALVATION ZONE', 'ZUBA ZONE',
+  ],
+  NIGER: [
+    'SULEJA DCC', 'TUNGA DCC', 'GAURAKA DCC', 'BIDA DCC',
+    'NIGER DCC', 'KWAMBA DCC', 'KONTAGORA ZONE', 'MANDALA ZONE',
+  ],
+  KADUNA: [
+    'KAWO DCC', 'KAKURI DCC', 'SAMARU ZONE', 'KOSEUNTI ZONE',
+    'ZION ZONE', 'KAFANCHAN ZONE', 'KADUNA DCC', 'TUNDUNWADA DCC', 'ZARIA DCC',
+  ],
+};
 
 interface FormData {
-  name: string;
+  firstName: string;
+  middleName: string;
+  lastName: string;
   dob: string;
   dccZone: string;
   gender: string;
@@ -29,13 +46,13 @@ interface FormData {
 type FormField = keyof FormData;
 
 const empty: FormData = {
-  name: '', dob: '', dccZone: '', gender: '',
+  firstName: '', middleName: '', lastName: '', dob: '', dccZone: '', gender: '',
   phone: '', email: '', state: '', status: '', occupation: '', qualification: '',
 };
 
 const STEP_META = [
   { label: 'Personal',  title: 'Tell Us About You',    subtitle: 'Basic personal details' },
-  { label: 'Church',    title: 'Your Church Home',      subtitle: 'DCC / Zone & location' },
+  { label: 'Church',    title: 'Your Church Home',      subtitle: 'State & DCC / Zone' },
   { label: 'Contact',   title: 'Contact & Background',  subtitle: 'How to reach you' },
 ];
 
@@ -45,16 +62,6 @@ const Conference = () => {
   const [form, setForm]       = useState<FormData>(empty);
   const [errors, setErrors]   = useState<Partial<Record<FormField, string>>>({});
   const [loading, setLoading] = useState(false);
-  const [scriptReady, setScriptReady] = useState(false);
-
-  useEffect(() => {
-    if (window.FlutterwaveCheckout) { setScriptReady(true); return; }
-    const script = document.createElement('script');
-    script.src = 'https://checkout.flutterwave.com/v3.js';
-    script.async = true;
-    script.onload = () => setScriptReady(true);
-    document.head.appendChild(script);
-  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -63,21 +70,27 @@ const Conference = () => {
   };
 
   const pick = (field: FormField, value: string) => {
-    setForm(prev => ({ ...prev, [field]: value }));
-    setErrors(prev => ({ ...prev, [field]: undefined }));
+    if (field === 'state') {
+      setForm(prev => ({ ...prev, state: value as SelectedState, dccZone: '' }));
+      setErrors(prev => ({ ...prev, state: undefined, dccZone: undefined }));
+    } else {
+      setForm(prev => ({ ...prev, [field]: value }));
+      setErrors(prev => ({ ...prev, [field]: undefined }));
+    }
   };
 
   const validateStep = (s: number): boolean => {
     const errs: Partial<Record<FormField, string>> = {};
     if (s === 1) {
-      if (!form.name.trim())   errs.name   = 'Full name is required';
-      if (!form.dob.trim())    errs.dob    = 'Date of birth / age is required';
-      if (!form.gender)        errs.gender = 'Please select your gender';
-      if (!form.status)        errs.status = 'Please select your status';
+      if (!form.firstName.trim()) errs.firstName = 'First name is required';
+      if (!form.lastName.trim())  errs.lastName  = 'Last name is required';
+      if (!form.dob.trim())       errs.dob       = 'Date of birth is required';
+      if (!form.gender)           errs.gender    = 'Please select your gender';
+      if (!form.status)           errs.status    = 'Please select your status';
     }
     if (s === 2) {
-      if (!form.dccZone.trim()) errs.dccZone = 'DCC / Zone is required';
-      if (!form.state)          errs.state   = 'Please select your state';
+      if (!form.state)            errs.state   = 'Please select your state';
+      if (!form.dccZone.trim())   errs.dccZone = 'DCC / Zone is required';
     }
     if (s === 3) {
       if (!form.phone.trim())        errs.phone         = 'Phone number is required';
@@ -93,56 +106,31 @@ const Conference = () => {
   const handleNext = () => { if (validateStep(step)) setStep(s => s + 1); };
   const handleBack = () => { setStep(s => s - 1); setErrors({}); };
 
+  const fullName = [form.firstName, form.middleName, form.lastName].filter(Boolean).join(' ');
+
   const handleTestSkip = () => {
     if (!validateStep(step)) return;
     const uniqueCode = generateUniqueCode(form.state as SelectedState);
-    navigate('/conference/slip', { state: { ...form, uniqueCode } });
+    navigate('/conference/slip', { state: { ...form, name: fullName, uniqueCode } });
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validateStep(3)) return;
-    if (!scriptReady) { alert('Payment is loading. Please try again in a moment.'); return; }
-
-    const txRef = `CACYOUTH-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
-
-    window.FlutterwaveCheckout?.({
-      public_key: import.meta.env.VITE_FLW_PUBLIC_KEY ?? 'FLWPUBK_TEST-XXXX',
-      tx_ref: txRef,
-      amount: CONFERENCE_FEE,
-      currency: 'NGN',
-      payment_options: 'card,ussd,banktransfer',
-      customer: { email: form.email, phone_number: form.phone, name: form.name },
-      customizations: {
-        title: 'CAC Youth Conference',
-        description: 'Conference Registration Fee',
-        logo: `${window.location.origin}/favicon.png`,
-      },
-      callback: async (response: { status: string; transaction_id: number; tx_ref: string }) => {
-        if (response.status === 'successful') {
-          setLoading(true);
-          try {
-            const uniqueCode = generateUniqueCode(form.state as SelectedState);
-            await addDoc(collection(db, 'registrations'), {
-              ...form,
-              uniqueCode,
-              paymentRef: String(response.transaction_id),
-              txRef: response.tx_ref,
-              amount: CONFERENCE_FEE,
-              verified: false,
-              registeredAt: new Date().toISOString(),
-            });
-            navigate('/conference/slip', { state: { ...form, uniqueCode } });
-          } catch {
-            alert(
-              `Payment successful but registration could not be saved. ` +
-              `Please contact the organiser with your payment ref: ${response.transaction_id}`
-            );
-            setLoading(false);
-          }
-        }
-      },
-      onclose: () => {},
-    });
+    setLoading(true);
+    try {
+      const uniqueCode = generateUniqueCode(form.state as SelectedState);
+      const res = await fetch(`${API}/api/payment/initiate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, name: fullName, uniqueCode }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Payment initiation failed');
+      window.location.href = data.cashierUrl;
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to initiate payment. Please try again.');
+      setLoading(false);
+    }
   };
 
   // ── Styles ──────────────────────────────────────────────────────────────────
@@ -169,15 +157,38 @@ const Conference = () => {
   const renderStep = () => {
     if (step === 1) return (
       <div className="space-y-5">
-        {/* Full Name */}
+        {/* First Name */}
         <div>
-          <label className="block text-gray-300 text-sm font-semibold mb-2">Full Name</label>
+          <label className="block text-gray-300 text-sm font-semibold mb-2">First Name</label>
           <input
-            type="text" name="name" value={form.name} onChange={handleChange}
-            placeholder="e.g. John Adebayo" autoComplete="name"
-            className={inputCls('name')}
+            type="text" name="firstName" value={form.firstName} onChange={handleChange}
+            placeholder="e.g. John" autoComplete="given-name"
+            className={inputCls('firstName')}
           />
-          {errors.name && <p className="text-red-400 text-xs mt-1.5">{errors.name}</p>}
+          {errors.firstName && <p className="text-red-400 text-xs mt-1.5">{errors.firstName}</p>}
+        </div>
+
+        {/* Middle Name */}
+        <div>
+          <label className="block text-gray-300 text-sm font-semibold mb-2">
+            Middle Name <span className="text-gray-500 font-normal">(optional)</span>
+          </label>
+          <input
+            type="text" name="middleName" value={form.middleName} onChange={handleChange}
+            placeholder="e.g. Emeka" autoComplete="additional-name"
+            className={inputCls('middleName')}
+          />
+        </div>
+
+        {/* Last Name */}
+        <div>
+          <label className="block text-gray-300 text-sm font-semibold mb-2">Last Name</label>
+          <input
+            type="text" name="lastName" value={form.lastName} onChange={handleChange}
+            placeholder="e.g. Adebayo" autoComplete="family-name"
+            className={inputCls('lastName')}
+          />
+          {errors.lastName && <p className="text-red-400 text-xs mt-1.5">{errors.lastName}</p>}
         </div>
 
         {/* DOB */}
@@ -216,29 +227,19 @@ const Conference = () => {
 
     if (step === 2) return (
       <div className="space-y-5">
-        {/* DCC / Zone */}
-        <div>
-          <label className="block text-gray-300 text-sm font-semibold mb-2">DCC / Zone</label>
-          <input
-            type="text" name="dccZone" value={form.dccZone} onChange={handleChange}
-            placeholder="e.g. Wuse DCC · Zone 3"
-            className={inputCls('dccZone')}
-          />
-          {errors.dccZone && <p className="text-red-400 text-xs mt-1.5">{errors.dccZone}</p>}
-        </div>
-
-        {/* State — card-style tiles */}
+        {/* State — card-style tiles, FIRST */}
         <div>
           <label className="block text-gray-300 text-sm font-semibold mb-3">State</label>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             {([
               { v: 'FCT',    l: 'FCT',    sub: 'Abuja' },
               { v: 'NIGER',  l: 'Niger',  sub: 'State' },
               { v: 'KADUNA', l: 'Kaduna', sub: 'State' },
+              { v: 'OTHER',  l: 'Other',  sub: 'State' },
             ] as const).map(({ v, l, sub }) => (
               <button
                 key={v} type="button" onClick={() => pick('state', v)}
-                className={`py-5 rounded-xl border transition-all duration-200 text-center cursor-pointer flex flex-col items-center gap-1 ${
+                className={`py-4 rounded-xl border transition-all duration-200 text-center cursor-pointer flex flex-col items-center gap-1 ${
                   form.state === v
                     ? 'bg-purple-600 border-purple-500 text-white shadow-lg shadow-purple-900/40'
                     : 'bg-white/5 border-white/10 text-gray-400 hover:border-purple-400/40 hover:text-gray-200'
@@ -250,6 +251,34 @@ const Conference = () => {
             ))}
           </div>
           {errors.state && <p className="text-red-400 text-xs mt-1.5">{errors.state}</p>}
+        </div>
+
+        {/* DCC / Zone — dropdown for known states, text input for Other */}
+        <div>
+          <label className="block text-gray-300 text-sm font-semibold mb-2">DCC / Zone</label>
+          {form.state === 'OTHER' ? (
+            <input
+              type="text" name="dccZone" value={form.dccZone} onChange={handleChange}
+              placeholder="Enter your DCC or Zone name"
+              className={inputCls('dccZone')}
+            />
+          ) : (
+            <select
+              name="dccZone" value={form.dccZone} onChange={handleChange}
+              disabled={!form.state}
+              className={`w-full rounded-xl px-4 py-4 bg-gray-950 border focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all text-base appearance-none ${
+                errors.dccZone ? 'border-red-500' : 'border-white/10'
+              } ${!form.state ? 'text-gray-600 cursor-not-allowed' : 'text-white cursor-pointer'}`}
+            >
+              <option value="">
+                {form.state ? '— Select your DCC / Zone —' : '— Select a state first —'}
+              </option>
+              {form.state && ZONES_BY_STATE[form.state as Exclude<SelectedState, 'OTHER'>].map(zone => (
+                <option key={zone} value={zone}>{zone}</option>
+              ))}
+            </select>
+          )}
+          {errors.dccZone && <p className="text-red-400 text-xs mt-1.5">{errors.dccZone}</p>}
         </div>
       </div>
     );
@@ -423,7 +452,7 @@ const Conference = () => {
         </div>
 
         <p className="text-gray-600 text-xs text-center mt-5 leading-relaxed">
-          Secured by Flutterwave · Your payment information is encrypted and safe.
+          Secured by OPay · Your payment information is encrypted and safe.
         </p>
       </section>
     </div>

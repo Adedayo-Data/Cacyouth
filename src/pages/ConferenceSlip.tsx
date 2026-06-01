@@ -4,27 +4,21 @@ interface SlipState {
   name: string;
   uniqueCode: string;
   state: string;
-  dob?: string;
-  dccZone?: string;
-  gender?: string;
   phone?: string;
-  email?: string;
-  status?: string;
-  occupation?: string;
-  qualification?: string;
 }
 
 const STATE_LABELS: Record<string, string> = {
   FCT: 'FCT — Abuja',
   NIGER: 'Niger State',
   KADUNA: 'Kaduna State',
+  OTHER: 'Other State',
 };
 
 const Row = ({ label, value }: { label: string; value?: string }) => {
   if (!value) return null;
   return (
-    <div className="flex justify-between items-start gap-3 py-2.5 border-b border-gray-100 last:border-0">
-      <span className="text-gray-400 text-sm shrink-0">{label}</span>
+    <div className="flex justify-between items-center gap-3 py-3 border-b border-gray-100 last:border-0">
+      <span className="text-gray-400 text-sm">{label}</span>
       <span className="text-gray-900 font-semibold text-sm text-right">{value}</span>
     </div>
   );
@@ -51,10 +45,6 @@ const ConferenceSlip = () => {
       </div>
     );
   }
-
-  const registrationDate = new Date().toLocaleDateString('en-NG', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-  });
 
   return (
     <>
@@ -115,26 +105,18 @@ const ConferenceSlip = () => {
             </div>
 
             {/* Registrant details */}
-            <div className="space-y-0 mb-7">
-              <Row label="Name"          value={slip.name} />
-              <Row label="Date of Birth"  value={slip.dob ? new Date(slip.dob).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' }) : undefined} />
-              <Row label="Gender"        value={slip.gender} />
-              <Row label="Status"        value={slip.status} />
-              <Row label="DCC / Zone"    value={slip.dccZone} />
-              <Row label="State"         value={STATE_LABELS[slip.state] ?? slip.state} />
-              <Row label="Phone"         value={slip.phone} />
-              <Row label="Email"         value={slip.email} />
-              <Row label="Occupation"    value={slip.occupation} />
-              <Row label="Qualification" value={slip.qualification} />
-              <Row label="Date"          value={registrationDate} />
+            <div className="mb-7">
+              <Row label="Full Name" value={slip.name} />
+              <Row label="State"     value={STATE_LABELS[slip.state] ?? slip.state} />
+              <Row label="Phone"     value={slip.phone} />
             </div>
 
             {/* Admission code */}
             <div className="bg-gray-50 border-2 border-dashed border-purple-200 rounded-2xl py-8 px-4 mb-6 text-center">
               <p className="text-gray-400 text-xs uppercase tracking-widest font-semibold mb-3">
-                Admission Code
+                Registration ID
               </p>
-              <p className="text-4xl sm:text-5xl font-black tracking-[0.15em] text-gray-900 font-mono break-all">
+              <p className="text-3xl sm:text-4xl font-black tracking-[0.12em] text-gray-900 font-mono break-all">
                 {slip.uniqueCode}
               </p>
               <p className="text-gray-400 text-xs mt-3">

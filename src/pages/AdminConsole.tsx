@@ -1,10 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import {
-  collection, getDocs, updateDoc, deleteDoc,
-  addDoc, doc, query, orderBy, where,
-} from 'firebase/firestore';
-import { db } from '../config/firebase';
 
+const API = import.meta.env.VITE_API_URL ?? '';
 const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD ?? 'admin123';
 
 interface Registration {
@@ -40,7 +36,6 @@ const STATE_COLORS: Record<string, string> = {
   KADUNA: 'text-yellow-400',
 };
 
-/* ── Eye icon toggle helper ── */
 const EyeIcon = ({ open }: { open: boolean }) =>
   open ? (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -53,16 +48,7 @@ const EyeIcon = ({ open }: { open: boolean }) =>
     </svg>
   );
 
-/* ════════════════════════════════════════════════════════
-   PRINT REPORT — rendered off-screen, visible only on print
-   ════════════════════════════════════════════════════════ */
-const PrintReport = ({
-  data,
-  stateLabel,
-}: {
-  data: Registration[];
-  stateLabel: string;
-}) => (
+const PrintReport = ({ data, stateLabel }: { data: Registration[]; stateLabel: string }) => (
   <div className="print-only">
     <div className="print-header">
       <h1>CHRIST APOSTOLIC CHURCH YOUTH FELLOWSHIP</h1>
@@ -73,12 +59,7 @@ const PrintReport = ({
     <table className="print-table">
       <thead>
         <tr>
-          <th>#</th>
-          <th>Full Name</th>
-          <th>Phone</th>
-          <th>Email</th>
-          <th>Code</th>
-          <th>Status</th>
+          <th>#</th><th>Full Name</th><th>Phone</th><th>Email</th><th>Code</th><th>Status</th>
         </tr>
       </thead>
       <tbody>
@@ -97,9 +78,6 @@ const PrintReport = ({
   </div>
 );
 
-/* ════════════════════════════════════════════════════════
-   MAIN COMPONENT
-   ════════════════════════════════════════════════════════ */
 const AdminConsole = () => {
   const [authenticated, setAuthenticated] = useState(
     () => sessionStorage.getItem('cac_admin') === 'true'
@@ -115,7 +93,6 @@ const AdminConsole = () => {
   const [search, setSearch] = useState('');
   const [verifying, setVerifying] = useState<string | null>(null);
 
-  /* Staff state */
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [loadingStaff, setLoadingStaff] = useState(false);
   const [staffForm, setStaffForm] = useState({ name: '', username: '', password: '', state: '' as 'FCT' | 'NIGER' | 'KADUNA' | '' });
@@ -124,13 +101,13 @@ const AdminConsole = () => {
   const [creatingStaff, setCreatingStaff] = useState(false);
   const [deletingStaff, setDeletingStaff] = useState<string | null>(null);
 
-  /* Print state */
   const [printTarget, setPrintTarget] = useState<StateFilter | null>(null);
   const printReady = useRef(false);
 
+  const adminHeaders = { 'x-admin-key': ADMIN_PASSWORD };
+
   /* ── Auth ── */
-  const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const handleLogin = () => {
     if (password === ADMIN_PASSWORD) {
       sessionStorage.setItem('cac_admin', 'true');
       setAuthenticated(true);
@@ -151,9 +128,9 @@ const AdminConsole = () => {
   const fetchRegistrations = async () => {
     setLoadingRegs(true);
     try {
-      const q = query(collection(db, 'registrations'), orderBy('registeredAt', 'desc'));
-      const snap = await getDocs(q);
-      setRegistrations(snap.docs.map(d => ({ id: d.id, ...d.data() } as Registration)));
+      const res = await fetch(`${API}/api/registrations`, { headers: adminHeaders });
+      if (!res.ok) throw new Error('Fetch failed');
+      setRegistrations(await res.json());
     } catch (err) { console.error(err); }
     finally { setLoadingRegs(false); }
   };
@@ -162,8 +139,9 @@ const AdminConsole = () => {
   const fetchStaff = async () => {
     setLoadingStaff(true);
     try {
-      const snap = await getDocs(collection(db, 'staff'));
-      setStaff(snap.docs.map(d => ({ id: d.id, ...d.data() } as StaffMember)));
+      const res = await fetch(`${API}/api/staff`, { headers: adminHeaders });
+      if (!res.ok) throw new Error('Fetch failed');
+      setStaff(await res.json());
     } catch (err) { console.error(err); }
     finally { setLoadingStaff(false); }
   };
@@ -176,15 +154,13 @@ const AdminConsole = () => {
   const handleVerify = async (reg: Registration) => {
     setVerifying(reg.id);
     try {
-      const ref = doc(db, 'registrations', reg.id);
-      if (reg.verified) {
-        await updateDoc(ref, { verified: false });
-        setRegistrations(prev => prev.map(r => r.id === reg.id ? { ...r, verified: false, verifiedAt: undefined } : r));
-      } else {
-        const verifiedAt = new Date().toISOString();
-        await updateDoc(ref, { verified: true, verifiedAt });
-        setRegistrations(prev => prev.map(r => r.id === reg.id ? { ...r, verified: true, verifiedAt } : r));
-      }
+      const res = await fetch(`${API}/api/registrations/${reg.id}/verify`, {
+        method: 'PATCH',
+        headers: adminHeaders,
+      });
+      if (!res.ok) throw new Error('Verify failed');
+      const updated: Registration = await res.json();
+      setRegistrations(prev => prev.map(r => r.id === reg.id ? updated : r));
     } catch (err) { console.error(err); }
     finally { setVerifying(null); }
   };
@@ -200,28 +176,22 @@ const AdminConsole = () => {
     return Object.keys(errs).length === 0;
   };
 
-  const handleCreateStaff = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const handleCreateStaff = async () => {
     if (!validateStaffForm()) return;
-
-    // check username not taken
-    const existing = await getDocs(query(collection(db, 'staff'), where('username', '==', staffForm.username.trim())));
-    if (!existing.empty) {
-      setStaffErrors(prev => ({ ...prev, username: 'Username already taken' }));
-      return;
-    }
-
     setCreatingStaff(true);
     try {
-      const newStaff = {
-        name: staffForm.name.trim(),
-        username: staffForm.username.trim(),
-        password: staffForm.password.trim(),
-        state: staffForm.state as 'FCT' | 'NIGER' | 'KADUNA',
-        createdAt: new Date().toISOString(),
-      };
-      const ref = await addDoc(collection(db, 'staff'), newStaff);
-      setStaff(prev => [...prev, { id: ref.id, ...newStaff }]);
+      const res = await fetch(`${API}/api/staff`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...adminHeaders },
+        body: JSON.stringify(staffForm),
+      });
+      const data = await res.json();
+      if (res.status === 409) {
+        setStaffErrors(prev => ({ ...prev, username: 'Username already taken' }));
+        return;
+      }
+      if (!res.ok) throw new Error('Create failed');
+      setStaff(prev => [data, ...prev]);
       setStaffForm({ name: '', username: '', password: '', state: '' });
     } catch (err) { console.error(err); }
     finally { setCreatingStaff(false); }
@@ -231,7 +201,7 @@ const AdminConsole = () => {
     if (!confirm('Remove this staff account?')) return;
     setDeletingStaff(id);
     try {
-      await deleteDoc(doc(db, 'staff', id));
+      await fetch(`${API}/api/staff/${id}`, { method: 'DELETE', headers: adminHeaders });
       setStaff(prev => prev.filter(s => s.id !== id));
     } catch (err) { console.error(err); }
     finally { setDeletingStaff(null); }
@@ -266,7 +236,6 @@ const AdminConsole = () => {
   const printData = printTarget
     ? (printTarget === 'ALL' ? registrations : registrations.filter(r => r.state === printTarget))
     : [];
-
   const printLabel = printTarget === 'ALL' ? 'All States' : printTarget ? `${STATE_LABELS[printTarget]} State` : '';
 
   const stats = {
@@ -287,7 +256,7 @@ const AdminConsole = () => {
             <h1 className="text-white text-2xl font-black">Super Admin Console</h1>
             <p className="text-gray-400 text-sm mt-1">CACYOF 2026 Youth Conference</p>
           </div>
-          <form onSubmit={handleLogin} className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4">
+          <form onSubmit={e => { e.preventDefault(); handleLogin(); }} className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4">
             <div>
               <label className="block text-gray-300 text-sm font-semibold mb-2">Admin Password</label>
               <div className="relative">
@@ -320,7 +289,6 @@ const AdminConsole = () => {
   /* ════ DASHBOARD ════ */
   return (
     <>
-      {/* Print styles */}
       <style>{`
         @media screen { .print-only { display: none !important; } }
         @media print {
@@ -340,12 +308,10 @@ const AdminConsole = () => {
         }
       `}</style>
 
-      {/* Hidden print report — only visible when printing */}
       {printTarget && <PrintReport data={printData} stateLabel={printLabel} />}
 
       <div className="no-print min-h-screen bg-gray-950 text-white">
 
-        {/* ── Top bar ── */}
         <header className="bg-black/50 border-b border-white/10 px-4 sm:px-6 py-4 flex justify-between items-center gap-3 sticky top-0 z-10 backdrop-blur-md">
           <div className="flex items-center gap-3 min-w-0">
             <img src="/favicon.png" alt="CACYOF" className="h-9 w-9 shrink-0 object-contain" />
@@ -364,7 +330,6 @@ const AdminConsole = () => {
           </div>
         </header>
 
-        {/* ── Tabs ── */}
         <div className="border-b border-white/10 px-4 sm:px-6">
           <div className="flex gap-0 max-w-7xl mx-auto">
             {([['registrations', 'Registrations'], ['staff', 'Staff Accounts']] as [TabType, string][]).map(([tab, label]) => (
@@ -372,16 +337,12 @@ const AdminConsole = () => {
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`px-4 sm:px-6 py-3.5 text-sm font-semibold border-b-2 transition-colors ${
-                  activeTab === tab
-                    ? 'border-purple-400 text-purple-400'
-                    : 'border-transparent text-gray-400 hover:text-white'
+                  activeTab === tab ? 'border-purple-400 text-purple-400' : 'border-transparent text-gray-400 hover:text-white'
                 }`}
               >
                 {label}
                 {tab === 'staff' && staff.length > 0 && (
-                  <span className="ml-2 px-1.5 py-0.5 bg-purple-900/60 text-purple-300 text-xs rounded-md">
-                    {staff.length}
-                  </span>
+                  <span className="ml-2 px-1.5 py-0.5 bg-purple-900/60 text-purple-300 text-xs rounded-md">{staff.length}</span>
                 )}
               </button>
             ))}
@@ -393,14 +354,13 @@ const AdminConsole = () => {
           {/* ════ REGISTRATIONS TAB ════ */}
           {activeTab === 'registrations' && (
             <>
-              {/* Stats */}
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                 {[
-                  { label: 'Total', value: stats.total, cls: 'text-purple-400' },
-                  { label: 'FCT', value: stats.FCT, cls: 'text-blue-400' },
-                  { label: 'Niger', value: stats.NIGER, cls: 'text-green-400' },
-                  { label: 'Kaduna', value: stats.KADUNA, cls: 'text-yellow-400' },
-                  { label: 'Verified', value: stats.verified, cls: 'text-emerald-400' },
+                  { label: 'Total',   value: stats.total,   cls: 'text-purple-400' },
+                  { label: 'FCT',     value: stats.FCT,     cls: 'text-blue-400' },
+                  { label: 'Niger',   value: stats.NIGER,   cls: 'text-green-400' },
+                  { label: 'Kaduna',  value: stats.KADUNA,  cls: 'text-yellow-400' },
+                  { label: 'Verified',value: stats.verified, cls: 'text-emerald-400' },
                 ].map(s => (
                   <div key={s.label} className="bg-white/5 border border-white/10 rounded-xl p-4 text-center">
                     <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">{s.label}</p>
@@ -409,7 +369,6 @@ const AdminConsole = () => {
                 ))}
               </div>
 
-              {/* Print buttons */}
               <div className="bg-white/5 border border-white/10 rounded-xl p-4">
                 <p className="text-gray-400 text-xs uppercase tracking-wider mb-3 font-semibold">Print Registrations by State</p>
                 <div className="flex flex-wrap gap-2">
@@ -428,7 +387,6 @@ const AdminConsole = () => {
                 </div>
               </div>
 
-              {/* Search & filter */}
               <div className="flex flex-col gap-3">
                 <input
                   type="search"
@@ -456,14 +414,12 @@ const AdminConsole = () => {
                 Showing <span className="text-white font-semibold">{filtered.length}</span> registrant{filtered.length !== 1 ? 's' : ''}
               </p>
 
-              {/* Table / Cards */}
               {loadingRegs ? (
                 <div className="text-center py-20 text-gray-400">Loading registrations…</div>
               ) : filtered.length === 0 ? (
                 <div className="text-center py-20 text-gray-400">No registrations found.</div>
               ) : (
                 <>
-                  {/* Desktop table */}
                   <div className="hidden md:block overflow-x-auto rounded-xl border border-white/10">
                     <table className="w-full text-sm">
                       <thead className="bg-white/5">
@@ -507,7 +463,6 @@ const AdminConsole = () => {
                     </table>
                   </div>
 
-                  {/* Mobile cards */}
                   <div className="md:hidden space-y-3">
                     {filtered.map((reg, i) => (
                       <div key={reg.id} className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-3">
@@ -550,11 +505,9 @@ const AdminConsole = () => {
           {/* ════ STAFF ACCOUNTS TAB ════ */}
           {activeTab === 'staff' && (
             <div className="space-y-6">
-
-              {/* Create staff form */}
               <div className="bg-white/5 border border-white/10 rounded-2xl p-5 sm:p-6">
                 <h2 className="text-white font-bold text-base mb-5">Create Staff Account</h2>
-                <form onSubmit={handleCreateStaff} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <form onSubmit={e => { e.preventDefault(); handleCreateStaff(); }} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-gray-300 text-xs font-semibold mb-1.5 uppercase tracking-wider">Full Name</label>
                     <input
@@ -623,11 +576,9 @@ const AdminConsole = () => {
                 </form>
               </div>
 
-              {/* Staff list */}
               <div>
                 <h2 className="text-white font-bold text-base mb-4">
-                  Staff Accounts{' '}
-                  <span className="text-gray-400 font-normal text-sm">({staff.length})</span>
+                  Staff Accounts <span className="text-gray-400 font-normal text-sm">({staff.length})</span>
                 </h2>
 
                 {loadingStaff ? (
@@ -638,7 +589,6 @@ const AdminConsole = () => {
                   </div>
                 ) : (
                   <>
-                    {/* Desktop table */}
                     <div className="hidden md:block overflow-x-auto rounded-xl border border-white/10">
                       <table className="w-full text-sm">
                         <thead className="bg-white/5">
@@ -675,9 +625,8 @@ const AdminConsole = () => {
                       </table>
                     </div>
 
-                    {/* Mobile cards */}
                     <div className="md:hidden space-y-3">
-                      {staff.map((s) => (
+                      {staff.map(s => (
                         <div key={s.id} className="bg-white/5 border border-white/10 rounded-xl p-4">
                           <div className="flex items-start justify-between gap-2 mb-2">
                             <div>
