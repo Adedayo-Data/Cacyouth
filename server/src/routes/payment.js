@@ -61,14 +61,16 @@ router.post('/initiate', async (req, res) => {
       ]
     );
 
+    const APP_URL = process.env.APP_URL || 'http://localhost:3001';
+
     // Call OPay cashier/create
     const opayPayload = {
       country: 'NG',
       reference,
       amount: { total: CONFERENCE_FEE_KOBO, currency: 'NGN' },
-      returnUrl: `${process.env.FRONTEND_URL}/payment/return`,
-      callbackUrl: `${process.env.API_URL}/api/payment/webhook`,
-      cancelUrl: `${process.env.FRONTEND_URL}/conference`,
+      returnUrl: `${APP_URL}/payment/return`,
+      callbackUrl: `${APP_URL}/api/payment/webhook`,
+      cancelUrl: `${APP_URL}/conference`,
       displayName: 'CAC Youth Fellowship',
       product: {
         name: '2026 Youth Conference Registration',
