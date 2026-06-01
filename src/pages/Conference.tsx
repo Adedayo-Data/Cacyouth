@@ -28,6 +28,15 @@ const ZONES_BY_STATE: Record<Exclude<SelectedState, 'OTHER'>, string[]> = {
   ],
 };
 
+const OTHER_STATES = [
+  'Abia', 'Adamawa', 'Akwa Ibom', 'Anambra', 'Bauchi', 'Bayelsa',
+  'Benue', 'Borno', 'Cross River', 'Delta', 'Ebonyi', 'Edo',
+  'Ekiti', 'Enugu', 'Gombe', 'Imo', 'Jigawa', 'Kano',
+  'Katsina', 'Kebbi', 'Kogi', 'Kwara', 'Lagos', 'Nasarawa',
+  'Ogun', 'Ondo', 'Osun', 'Oyo', 'Plateau', 'Rivers',
+  'Sokoto', 'Taraba', 'Yobe', 'Zamfara',
+];
+
 interface FormData {
   firstName: string;
   middleName: string;
@@ -52,7 +61,7 @@ const empty: FormData = {
 
 const STEP_META = [
   { label: 'Personal',  title: 'Tell Us About You',    subtitle: 'Basic personal details' },
-  { label: 'Church',    title: 'Your Church Home',      subtitle: 'State & DCC / Zone' },
+  { label: 'Church',    title: 'Church / Denomination',  subtitle: 'State & DCC / Zone' },
   { label: 'Contact',   title: 'Contact & Background',  subtitle: 'How to reach you' },
 ];
 
@@ -90,7 +99,9 @@ const Conference = () => {
     }
     if (s === 2) {
       if (!form.state)            errs.state   = 'Please select your state';
-      if (!form.dccZone.trim())   errs.dccZone = 'DCC / Zone is required';
+      if (!form.dccZone.trim())   errs.dccZone = form.state === 'OTHER'
+        ? 'Please select your state'
+        : 'DCC / Zone is required';
     }
     if (s === 3) {
       if (!form.phone.trim())        errs.phone         = 'Phone number is required';
@@ -253,15 +264,23 @@ const Conference = () => {
           {errors.state && <p className="text-red-400 text-xs mt-1.5">{errors.state}</p>}
         </div>
 
-        {/* DCC / Zone — dropdown for known states, text input for Other */}
+        {/* DCC / Zone — changes based on selected state */}
         <div>
-          <label className="block text-gray-300 text-sm font-semibold mb-2">DCC / Zone</label>
+          <label className="block text-gray-300 text-sm font-semibold mb-2">
+            {form.state === 'OTHER' ? 'Please select your state' : 'DCC / Zone'}
+          </label>
           {form.state === 'OTHER' ? (
-            <input
-              type="text" name="dccZone" value={form.dccZone} onChange={handleChange}
-              placeholder="Enter your DCC or Zone name"
-              className={inputCls('dccZone')}
-            />
+            <select
+              name="dccZone" value={form.dccZone} onChange={handleChange}
+              className={`w-full rounded-xl px-4 py-4 bg-gray-950 border focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all text-base appearance-none cursor-pointer text-white ${
+                errors.dccZone ? 'border-red-500' : 'border-white/10'
+              }`}
+            >
+              <option value="">— Select your state —</option>
+              {OTHER_STATES.map(s => (
+                <option key={s} value={s}>{s} State</option>
+              ))}
+            </select>
           ) : (
             <select
               name="dccZone" value={form.dccZone} onChange={handleChange}

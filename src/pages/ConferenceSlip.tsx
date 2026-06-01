@@ -49,39 +49,42 @@ const ConferenceSlip = () => {
   return (
     <>
       <style>{`
-        @media print {
-          .no-print { display: none !important; }
-          .print-page { background: white; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-          .slip-card { box-shadow: none !important; border: 1px solid #e5e7eb !important; }
-        }
+        /* ── Screen layout ── */
         @media screen {
-          .print-page { background-color: #0D1B2A; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem 1rem; }
+          .slip-page {
+            background-color: #0D1B2A;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 1rem;
+          }
+        }
+
+        /* ── Print: show ONLY the slip card ── */
+        @media print {
+          /* Hide everything on the page */
+          body * { visibility: hidden; }
+          /* Then reveal only the slip card and its children */
+          #slip-card, #slip-card * { visibility: visible; }
+          /* Position the slip at the top-left so it fills the page */
+          #slip-card {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            box-shadow: none !important;
+            border: 1px solid #e5e7eb !important;
+            border-radius: 0 !important;
+          }
         }
       `}</style>
 
-      <div className="print-page">
-
-        {/* Action buttons */}
-        <div className="no-print flex flex-col sm:flex-row gap-3 mb-6 w-full max-w-md">
-          <button
-            onClick={() => window.print()}
-            className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-white bg-purple-600 hover:bg-purple-700 active:scale-95 transition-all duration-200 text-base"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-            </svg>
-            Print Slip
-          </button>
-          <button
-            onClick={() => navigate('/')}
-            className="flex-1 py-3.5 rounded-xl font-semibold text-gray-300 border border-white/20 hover:border-white/40 active:scale-95 transition-all duration-200 text-base"
-          >
-            Back to Home
-          </button>
-        </div>
+      <div className="slip-page">
 
         {/* ── Registration Slip ── */}
-        <div className="slip-card bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+        <div id="slip-card" className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
 
           {/* Header band */}
           <div className="bg-purple-700 px-6 py-5 text-center">
@@ -135,8 +138,27 @@ const ConferenceSlip = () => {
           </div>
         </div>
 
-        <p className="no-print text-gray-500 text-xs text-center mt-5 max-w-sm">
-          Screenshot this page or use the Print button above to save your slip.
+        {/* Action buttons — below the slip, hidden when printing */}
+        <div className="flex flex-col sm:flex-row gap-3 mt-6 w-full max-w-md">
+          <button
+            onClick={() => window.print()}
+            className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-white bg-purple-600 hover:bg-purple-700 active:scale-95 transition-all duration-200 text-base"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+            </svg>
+            Print Slip
+          </button>
+          <button
+            onClick={() => navigate('/')}
+            className="flex-1 py-3.5 rounded-xl font-semibold text-gray-300 border border-white/20 hover:border-white/40 active:scale-95 transition-all duration-200 text-base"
+          >
+            Back to Home
+          </button>
+        </div>
+
+        <p className="text-gray-500 text-xs text-center mt-4 max-w-sm">
+          Screenshot this page or use the Print button to save your slip.
         </p>
       </div>
     </>
