@@ -162,33 +162,34 @@ const Conference = () => {
       },
       callback: (response: { status: string; transaction_id: number; tx_ref: string }) => {
         if (response.status === 'successful') {
-          // Set slip data immediately so onclose can navigate even if fetch is still running
-          slipData = { name: fullName, state: form.state, dccZone: form.dccZone, phone: form.phone, uniqueCode };
+          const slip = {
+            name: fullName, state: form.state,
+            dccZone: form.dccZone, phone: form.phone, uniqueCode,
+          };
 
-          // Save to DB — fire and don't block the popup close
+          // Persist slip data so the slip page can read it after the redirect
+          sessionStorage.setItem('cac_slip', JSON.stringify(slip));
+
+          // Save registration to DB in the background
           fetch(`${API}/api/registrations`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              ...form,
-              name: fullName,
-              uniqueCode,
+              ...form, name: fullName, uniqueCode,
               paymentRef: String(response.transaction_id),
-              txRef: response.tx_ref,
-              amount: CONFERENCE_FEE,
+              txRef: response.tx_ref, amount: CONFERENCE_FEE,
               paymentStatus: 'success',
             }),
           })
             .then(r => { if (!r.ok) console.error('Registration save failed:', r.status); })
             .catch(err => console.error('Registration save error:', err));
+
+          // After 2 s the full-page redirect kills the Flutterwave popup automatically
+          // — no manual X click needed
+          setTimeout(() => { window.location.href = '/conference/slip'; }, 2000);
         }
       },
-      // Navigate to slip once the user closes the popup
-      onclose: () => {
-        if (slipData) {
-          navigate('/conference/slip', { state: slipData });
-        }
-      },
+      onclose: () => {},
     });
   };
 

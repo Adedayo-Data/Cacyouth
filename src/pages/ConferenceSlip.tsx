@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 interface SlipState {
@@ -33,7 +34,21 @@ const ConferenceSlip = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const slip = location.state as SlipState | null;
+  // After a Flutterwave payment, a full-page redirect brings us here with no
+  // React Router state — fall back to sessionStorage set by the callback.
+  const routerSlip = location.state as SlipState | null;
+  const sessionSlip = (() => {
+    try {
+      const raw = sessionStorage.getItem('cac_slip');
+      return raw ? (JSON.parse(raw) as SlipState) : null;
+    } catch { return null; }
+  })();
+  const slip = routerSlip ?? sessionSlip;
+
+  // Clear sessionStorage once we've read it so it doesn't linger
+  useEffect(() => {
+    if (sessionSlip) sessionStorage.removeItem('cac_slip');
+  }, []);
 
   if (!slip) {
     return (
