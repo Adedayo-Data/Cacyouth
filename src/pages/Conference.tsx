@@ -1,10 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { generateUniqueCode } from '../utils/codeGenerator';
 
 const API = import.meta.env.VITE_API_URL ?? '';
 
 const CONFERENCE_FEE = 3000;
+
+declare global {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  interface Window { FlutterwaveCheckout?: (config: any) => void; }
+}
 
 type SelectedState = 'FCT' | 'NIGER' | 'KADUNA' | 'OTHER';
 
@@ -71,6 +76,16 @@ const Conference = () => {
   const [form, setForm]       = useState<FormData>(empty);
   const [errors, setErrors]   = useState<Partial<Record<FormField, string>>>({});
   const [loading, setLoading] = useState(false);
+  const [scriptReady, setScriptReady] = useState(false);
+
+  useEffect(() => {
+    if (window.FlutterwaveCheckout) { setScriptReady(true); return; }
+    const s = document.createElement('script');
+    s.src = 'https://checkout.flutterwave.com/v3.js';
+    s.async = true;
+    s.onload = () => setScriptReady(true);
+    document.head.appendChild(s);
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -131,23 +146,62 @@ const Conference = () => {
     navigate('/conference/slip', { state: { ...form, name: fullName, uniqueCode } });
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!validateStep(3)) return;
-    setLoading(true);
-    try {
-      const uniqueCode = generateUniqueCode(stateForCode);
-      const res = await fetch(`${API}/api/payment/initiate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, name: fullName, uniqueCode }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Payment initiation failed');
-      window.location.href = data.cashierUrl;
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to initiate payment. Please try again.');
-      setLoading(false);
-    }
+    if (!scriptReady) { alert('Payment is still loading. Please try again in a moment.'); return; }
+
+    const uniqueCode = generateUniqueCode(stateForCode);
+    const txRef = `CACYOUTH-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+
+    window.FlutterwaveCheckout?.({
+      public_key: import.meta.env.VITE_FLW_PUBLIC_KEY,
+      tx_ref: txRef,
+      amount: CONFERENCE_FEE,
+      currency: 'NGN',
+      payment_options: 'card,ussd,banktransfer',
+      customer: { email: form.email, phone_number: form.phone, name: fullName },
+      customizations: {
+        title: 'CAC Youth Conference',
+        description: '2026 Conference Registration Fee',
+        logo: `${window.location.origin}/favicon.png`,
+      },
+      callback: async (response: { status: string; transaction_id: number; tx_ref: string }) => {
+        if (response.status === 'successful') {
+          setLoading(true);
+          try {
+            await fetch(`${API}/api/registrations`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                ...form,
+                name: fullName,
+                uniqueCode,
+                paymentRef: String(response.transaction_id),
+                txRef: response.tx_ref,
+                amount: CONFERENCE_FEE,
+                paymentStatus: 'success',
+              }),
+            });
+            navigate('/conference/slip', {
+              state: {
+                name: fullName,
+                state: form.state,
+                dccZone: form.dccZone,
+                phone: form.phone,
+                uniqueCode,
+              },
+            });
+          } catch {
+            alert(
+              `Payment successful but registration could not be saved. ` +
+              `Please contact us with your payment reference: ${response.transaction_id}`
+            );
+            setLoading(false);
+          }
+        }
+      },
+      onclose: () => {},
+    });
   };
 
   // ── Styles ──────────────────────────────────────────────────────────────────
@@ -477,7 +531,7 @@ const Conference = () => {
         </div>
 
         <p className="text-gray-600 text-xs text-center mt-5 leading-relaxed">
-          Secured by OPay · Your payment information is encrypted and safe.
+          Secured by Flutterwave · Your payment information is encrypted and safe.
         </p>
       </section>
     </div>
