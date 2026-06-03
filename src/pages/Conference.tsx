@@ -156,7 +156,8 @@ const Conference = () => {
         logo: `${window.location.origin}/favicon.png`,
       },
       callback: (response: { status: string; transaction_id: number; tx_ref: string }) => {
-        if (response.status === 'successful') {
+        console.log('FLW callback response:', JSON.stringify(response));
+        if (response.status === 'successful' || response.status === 'completed') {
           const slip = {
             name: fullName, state: form.state,
             dccZone: form.dccZone, phone: form.phone, uniqueCode,
