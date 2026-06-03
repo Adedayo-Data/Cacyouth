@@ -41,20 +41,21 @@ function ageCategory(age: number | null): { label: string; cls: string } {
 interface StaffMember {
   id: string;
   name: string;
+  email?: string;
   username: string;
-  password: string;
-  state: 'FCT' | 'NIGER' | 'KADUNA';
+  state: 'FCT' | 'NIGER' | 'KADUNA' | 'OTHER';
   createdAt: string;
 }
 
 type TabType = 'registrations' | 'staff';
 type StateFilter = 'ALL' | 'FCT' | 'NIGER' | 'KADUNA';
 
-const STATE_LABELS: Record<string, string> = { FCT: 'FCT', NIGER: 'Niger', KADUNA: 'Kaduna' };
+const STATE_LABELS: Record<string, string> = { FCT: 'FCT', NIGER: 'Niger', KADUNA: 'Kaduna', OTHER: 'Other States' };
 const STATE_COLORS: Record<string, string> = {
   FCT: 'text-blue-400',
   NIGER: 'text-green-400',
   KADUNA: 'text-yellow-400',
+  OTHER: 'text-purple-400',
 };
 
 const EyeIcon = ({ open }: { open: boolean }) =>
@@ -116,11 +117,11 @@ const AdminConsole = () => {
 
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [loadingStaff, setLoadingStaff] = useState(false);
-  const [staffForm, setStaffForm] = useState({ name: '', username: '', password: '', state: '' as 'FCT' | 'NIGER' | 'KADUNA' | '' });
-  const [staffErrors, setStaffErrors] = useState<Partial<typeof staffForm>>({});
-  const [showStaffPwd, setShowStaffPwd] = useState(false);
+  const [staffForm, setStaffForm] = useState({ name: '', email: '', state: '' as 'FCT' | 'NIGER' | 'KADUNA' | 'OTHER' | '' });
+  const [staffErrors, setStaffErrors] = useState<Partial<Record<'name' | 'email' | 'state', string>>>({});
   const [creatingStaff, setCreatingStaff] = useState(false);
   const [deletingStaff, setDeletingStaff] = useState<string | null>(null);
+  const [createdStaff, setCreatedStaff] = useState<{ username: string; emailSent: boolean } | null>(null);
 
   const [printTarget, setPrintTarget] = useState<StateFilter | null>(null);
   const printReady = useRef(false);
@@ -187,35 +188,32 @@ const AdminConsole = () => {
   };
 
   /* ── Create staff ── */
-  const validateStaffForm = () => {
-    const errs: Partial<typeof staffForm> = {};
-    if (!staffForm.name.trim()) errs.name = 'Name required';
-    if (!staffForm.username.trim()) errs.username = 'Username required';
-    if (!staffForm.password.trim()) errs.password = 'Password required';
-    if (!staffForm.state) errs.state = '' as 'FCT';
-    setStaffErrors(errs);
-    return Object.keys(errs).length === 0;
-  };
-
   const handleCreateStaff = async () => {
-    if (!validateStaffForm()) return;
+    const errs: Partial<Record<'name' | 'email' | 'state', string>> = {};
+    if (!staffForm.name.trim()) errs.name = 'Name is required';
+    if (!staffForm.email.trim()) errs.email = 'Email is required';
+    else if (!/\S+@\S+\.\S+/.test(staffForm.email)) errs.email = 'Enter a valid email';
+    if (!staffForm.state) errs.state = 'State is required';
+    setStaffErrors(errs);
+    if (Object.keys(errs).length > 0) return;
+
     setCreatingStaff(true);
+    setCreatedStaff(null);
     try {
       const res = await fetch(`${API}/api/staff`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...adminHeaders },
-        body: JSON.stringify(staffForm),
+        body: JSON.stringify({ name: staffForm.name, email: staffForm.email, state: staffForm.state }),
       });
       const data = await res.json();
-      if (res.status === 409) {
-        setStaffErrors(prev => ({ ...prev, username: 'Username already taken' }));
-        return;
-      }
-      if (!res.ok) throw new Error('Create failed');
+      if (!res.ok) throw new Error(data.error || 'Create failed');
       setStaff(prev => [data, ...prev]);
-      setStaffForm({ name: '', username: '', password: '', state: '' });
-    } catch (err) { console.error(err); }
-    finally { setCreatingStaff(false); }
+      setCreatedStaff({ username: data.username, emailSent: data.emailSent });
+      setStaffForm({ name: '', email: '', state: '' });
+    } catch (err) {
+      console.error(err);
+      alert(err instanceof Error ? err.message : 'Failed to create staff account');
+    } finally { setCreatingStaff(false); }
   };
 
   const handleDeleteStaff = async (id: string) => {
@@ -557,64 +555,62 @@ const AdminConsole = () => {
                       type="text"
                       value={staffForm.name}
                       onChange={e => setStaffForm(p => ({ ...p, name: e.target.value }))}
-                      placeholder="Staff full name"
+                      placeholder="e.g. John Adebayo"
                       className={`w-full bg-white/5 border ${staffErrors.name ? 'border-red-500' : 'border-white/10'} rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all text-sm`}
                     />
                     {staffErrors.name && <p className="text-red-400 text-xs mt-1">{staffErrors.name}</p>}
                   </div>
 
                   <div>
-                    <label className="block text-gray-300 text-xs font-semibold mb-1.5 uppercase tracking-wider">Username</label>
+                    <label className="block text-gray-300 text-xs font-semibold mb-1.5 uppercase tracking-wider">Email Address</label>
                     <input
-                      type="text"
-                      value={staffForm.username}
-                      onChange={e => setStaffForm(p => ({ ...p, username: e.target.value }))}
-                      placeholder="e.g. fct_staff1"
-                      className={`w-full bg-white/5 border ${staffErrors.username ? 'border-red-500' : 'border-white/10'} rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all text-sm`}
+                      type="email"
+                      value={staffForm.email}
+                      onChange={e => setStaffForm(p => ({ ...p, email: e.target.value }))}
+                      placeholder="staff@example.com"
+                      className={`w-full bg-white/5 border ${staffErrors.email ? 'border-red-500' : 'border-white/10'} rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all text-sm`}
                     />
-                    {staffErrors.username && <p className="text-red-400 text-xs mt-1">{staffErrors.username}</p>}
-                  </div>
-
-                  <div>
-                    <label className="block text-gray-300 text-xs font-semibold mb-1.5 uppercase tracking-wider">Password</label>
-                    <div className="relative">
-                      <input
-                        type={showStaffPwd ? 'text' : 'password'}
-                        value={staffForm.password}
-                        onChange={e => setStaffForm(p => ({ ...p, password: e.target.value }))}
-                        placeholder="Set a password"
-                        className={`w-full bg-white/5 border ${staffErrors.password ? 'border-red-500' : 'border-white/10'} rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all pr-10 text-sm`}
-                      />
-                      <button type="button" onClick={() => setShowStaffPwd(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white p-0.5">
-                        <EyeIcon open={showStaffPwd} />
-                      </button>
-                    </div>
-                    {staffErrors.password && <p className="text-red-400 text-xs mt-1">{staffErrors.password}</p>}
-                  </div>
-
-                  <div>
-                    <label className="block text-gray-300 text-xs font-semibold mb-1.5 uppercase tracking-wider">Assigned State</label>
-                    <select
-                      value={staffForm.state}
-                      onChange={e => setStaffForm(p => ({ ...p, state: e.target.value as 'FCT' | 'NIGER' | 'KADUNA' | '' }))}
-                      className={`w-full bg-gray-950 border ${staffErrors.state !== undefined && !staffForm.state ? 'border-red-500' : 'border-white/10'} rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all text-sm`}
-                    >
-                      <option value="">Select state</option>
-                      <option value="FCT">FCT (Abuja)</option>
-                      <option value="NIGER">Niger State</option>
-                      <option value="KADUNA">Kaduna State</option>
-                    </select>
-                    {staffErrors.state !== undefined && !staffForm.state && <p className="text-red-400 text-xs mt-1">State required</p>}
+                    {staffErrors.email && <p className="text-red-400 text-xs mt-1">{staffErrors.email}</p>}
                   </div>
 
                   <div className="sm:col-span-2">
-                    <button
-                      type="submit"
-                      disabled={creatingStaff}
-                      className="w-full sm:w-auto px-8 py-3 bg-purple-100 hover:bg-purple-700 rounded-xl text-white font-bold transition-colors disabled:opacity-50 text-sm active:scale-95"
+                    <label className="block text-gray-300 text-xs font-semibold mb-1.5 uppercase tracking-wider">Assigned State</label>
+                    <select
+                      value={staffForm.state}
+                      onChange={e => setStaffForm(p => ({ ...p, state: e.target.value as 'FCT' | 'NIGER' | 'KADUNA' | 'OTHER' | '' }))}
+                      className={`w-full bg-gray-950 border ${staffErrors.state ? 'border-red-500' : 'border-white/10'} rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all text-sm`}
                     >
-                      {creatingStaff ? 'Creating…' : 'Create Staff Account'}
+                      <option value="">— Select state —</option>
+                      <option value="FCT">FCT (Abuja)</option>
+                      <option value="NIGER">Niger State</option>
+                      <option value="KADUNA">Kaduna State</option>
+                      <option value="OTHER">Other States</option>
+                    </select>
+                    {staffErrors.state && <p className="text-red-400 text-xs mt-1">{staffErrors.state}</p>}
+                    {staffForm.state === 'OTHER' && (
+                      <p className="text-gray-500 text-xs mt-1.5">This staff member will verify all registrants from states outside FCT, Niger and Kaduna.</p>
+                    )}
+                  </div>
+
+                  <div className="sm:col-span-2 space-y-3">
+                    {createdStaff && (
+                      <div className={`rounded-xl p-4 border ${createdStaff.emailSent ? 'bg-green-900/20 border-green-500/30' : 'bg-amber-900/20 border-amber-500/30'}`}>
+                        <p className={`text-sm font-semibold mb-1 ${createdStaff.emailSent ? 'text-green-400' : 'text-amber-400'}`}>
+                          {createdStaff.emailSent ? '✓ Staff account created & email sent!' : '⚠ Account created but email failed to send'}
+                        </p>
+                        <p className="text-gray-300 text-xs">Username: <span className="font-mono font-bold text-white">{createdStaff.username}</span></p>
+                        {!createdStaff.emailSent && <p className="text-amber-300 text-xs mt-1">Check that RESEND_API_KEY is set in Railway and the sender domain is verified.</p>}
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleCreateStaff}
+                      disabled={creatingStaff}
+                      className="w-full sm:w-auto px-8 py-3 bg-purple-600 hover:bg-purple-700 rounded-xl text-white font-bold transition-colors disabled:opacity-50 text-sm active:scale-95"
+                    >
+                      {creatingStaff ? 'Creating & sending email…' : 'Create Staff Account'}
                     </button>
+                    <p className="text-gray-500 text-xs">A username and password will be auto-generated and emailed to the staff member.</p>
                   </div>
                 </form>
               </div>
@@ -636,7 +632,7 @@ const AdminConsole = () => {
                       <table className="w-full text-sm">
                         <thead className="bg-white/5">
                           <tr>
-                            {['#', 'Name', 'Username', 'Assigned State', 'Created', 'Action'].map(h => (
+                            {['#', 'Name', 'Email', 'Username', 'State', 'Created', 'Action'].map(h => (
                               <th key={h} className="px-4 py-3 text-left text-gray-400 font-semibold uppercase text-xs tracking-wider">{h}</th>
                             ))}
                           </tr>
@@ -646,6 +642,7 @@ const AdminConsole = () => {
                             <tr key={s.id} className="border-t border-white/5 hover:bg-white/5 transition-colors">
                               <td className="px-4 py-3 text-gray-500 text-xs">{i + 1}</td>
                               <td className="px-4 py-3 font-semibold text-white">{s.name}</td>
+                              <td className="px-4 py-3 text-gray-400 text-xs">{s.email ?? '—'}</td>
                               <td className="px-4 py-3 text-gray-300 font-mono text-xs">{s.username}</td>
                               <td className="px-4 py-3">
                                 <span className={`font-bold text-sm ${STATE_COLORS[s.state] ?? 'text-gray-300'}`}>

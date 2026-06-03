@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 
 const API = import.meta.env.VITE_API_URL ?? '';
+const inputCls = (err?: string) =>
+  `w-full bg-white/5 border ${err ? 'border-red-500' : 'border-white/10'} rounded-xl px-4 py-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all text-base`;
 
 interface Registration {
   id: string;
@@ -18,10 +20,16 @@ interface StaffSession {
   id: string;
   name: string;
   username: string;
-  state: 'FCT' | 'NIGER' | 'KADUNA';
+  state: 'FCT' | 'NIGER' | 'KADUNA' | 'OTHER';
+  mustChangePassword?: boolean;
 }
 
-const STATE_LABELS: Record<string, string> = { FCT: 'FCT (Abuja)', NIGER: 'Niger State', KADUNA: 'Kaduna State' };
+const STATE_LABELS: Record<string, string> = {
+  FCT: 'FCT (Abuja)',
+  NIGER: 'Niger State',
+  KADUNA: 'Kaduna State',
+  OTHER: 'Other States',
+};
 
 const STATE_THEME: Record<string, { bg: string; text: string; border: string; badge: string }> = {
   FCT: {
@@ -41,6 +49,12 @@ const STATE_THEME: Record<string, { bg: string; text: string; border: string; ba
     text: 'text-yellow-400',
     border: 'border-yellow-500/30',
     badge: 'bg-yellow-900/50 text-yellow-300',
+  },
+  OTHER: {
+    bg: 'from-purple-950 to-gray-950',
+    text: 'text-purple-400',
+    border: 'border-purple-500/30',
+    badge: 'bg-purple-900/50 text-purple-300',
   },
 };
 
@@ -74,6 +88,13 @@ const StaffPortal = () => {
   const [search, setSearch] = useState('');
   const [verifying, setVerifying] = useState<string | null>(null);
 
+  /* ── Force password change ── */
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [pwdError, setPwdError] = useState('');
+  const [changingPwd, setChangingPwd] = useState(false);
+  const [showNewPwd, setShowNewPwd] = useState(false);
+
   /* ── Login ── */
   const handleLogin = async () => {
     setLoggingIn(true);
@@ -93,6 +114,35 @@ const StaffPortal = () => {
       setLoginError('An error occurred. Please try again.');
     } finally {
       setLoggingIn(false);
+    }
+  };
+
+  /* ── Change password (forced on first login) ── */
+  const handleChangePassword = async () => {
+    setPwdError('');
+    if (newPassword.length < 8) { setPwdError('Password must be at least 8 characters'); return; }
+    if (newPassword !== confirmPassword) { setPwdError('Passwords do not match'); return; }
+    if (!session) return;
+    setChangingPwd(true);
+    try {
+      const res = await fetch(`${API}/api/staff/change-password`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: session.username,
+          currentPassword: password, // still in state from login
+          newPassword,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setPwdError(data.error || 'Failed to change password'); return; }
+      const updated = { ...session, mustChangePassword: false };
+      sessionStorage.setItem('cac_staff', JSON.stringify(updated));
+      setSession(updated);
+    } catch {
+      setPwdError('An error occurred. Please try again.');
+    } finally {
+      setChangingPwd(false);
     }
   };
 
@@ -208,6 +258,66 @@ const StaffPortal = () => {
   }
 
   const theme = STATE_THEME[session.state] ?? STATE_THEME.FCT;
+
+  /* ════ FORCE PASSWORD CHANGE ════ */
+  if (session.mustChangePassword) {
+    return (
+      <div className="min-h-screen bg-gray-950 flex items-center justify-center px-4 py-12">
+        <div className="w-full max-w-sm">
+          <div className="text-center mb-8">
+            <img src="/favicon.png" alt="CACYOF" className="h-16 w-16 mx-auto mb-4 object-contain" />
+            <h1 className="text-white text-2xl font-black">Set New Password</h1>
+            <p className="text-gray-400 text-sm mt-2 leading-relaxed">
+              Welcome, <span className="text-white font-semibold">{session.name}</span>!<br />
+              Please set a new password before you can continue.
+            </p>
+          </div>
+
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4">
+            <div>
+              <label className="block text-gray-300 text-sm font-semibold mb-2">New Password</label>
+              <div className="relative">
+                <input
+                  type={showNewPwd ? 'text' : 'password'}
+                  value={newPassword}
+                  onChange={e => { setNewPassword(e.target.value); setPwdError(''); }}
+                  placeholder="At least 8 characters"
+                  className={inputCls(pwdError ? pwdError : undefined)}
+                />
+                <button type="button" onClick={() => setShowNewPwd(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white p-1">
+                  <EyeIcon open={showNewPwd} />
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-gray-300 text-sm font-semibold mb-2">Confirm Password</label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={e => { setConfirmPassword(e.target.value); setPwdError(''); }}
+                placeholder="Repeat your new password"
+                className={inputCls(pwdError ? pwdError : undefined)}
+              />
+              {pwdError && <p className="text-red-400 text-xs mt-1.5">{pwdError}</p>}
+            </div>
+
+            <button
+              onClick={handleChangePassword}
+              disabled={changingPwd}
+              className="w-full py-4 bg-purple-600 hover:bg-purple-700 rounded-xl text-white font-bold transition-colors text-base active:scale-95 disabled:opacity-50"
+            >
+              {changingPwd ? 'Saving…' : 'Save New Password & Continue'}
+            </button>
+          </div>
+
+          <button onClick={handleLogout} className="w-full mt-4 text-center text-gray-500 text-sm hover:text-gray-300 transition-colors">
+            ← Back to login
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   /* ════ STAFF DASHBOARD ════ */
   return (

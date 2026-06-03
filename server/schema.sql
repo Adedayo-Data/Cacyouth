@@ -27,10 +27,22 @@ CREATE TABLE IF NOT EXISTS registrations (
 );
 
 CREATE TABLE IF NOT EXISTS staff (
-  id         SERIAL PRIMARY KEY,
-  name       VARCHAR(200) NOT NULL,
-  username   VARCHAR(100) UNIQUE NOT NULL,
-  password   VARCHAR(200) NOT NULL,
-  state      VARCHAR(20)  NOT NULL,
-  created_at TIMESTAMPTZ  DEFAULT NOW()
+  id                  SERIAL PRIMARY KEY,
+  name                VARCHAR(200) NOT NULL,
+  email               VARCHAR(200),
+  username            VARCHAR(100) UNIQUE NOT NULL,
+  password            VARCHAR(200) NOT NULL,
+  state               VARCHAR(20)  NOT NULL,
+  must_change_password BOOLEAN     DEFAULT TRUE,
+  created_at          TIMESTAMPTZ  DEFAULT NOW()
 );
+
+-- Safe migration: add new columns if they don't exist yet
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='staff' AND column_name='email') THEN
+    ALTER TABLE staff ADD COLUMN email VARCHAR(200);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='staff' AND column_name='must_change_password') THEN
+    ALTER TABLE staff ADD COLUMN must_change_password BOOLEAN DEFAULT TRUE;
+  END IF;
+END $$;
