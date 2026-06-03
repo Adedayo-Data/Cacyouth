@@ -184,7 +184,12 @@ const Conference = () => {
           setTimeout(() => { window.location.href = '/conference/slip'; }, 2000);
         }
       },
-      onclose: () => {},
+      onclose: () => {
+        // If payment succeeded (sessionStorage set) redirect immediately when popup closes
+        if (sessionStorage.getItem('cac_slip')) {
+          window.location.href = '/conference/slip';
+        }
+      },
     });
   };
 
