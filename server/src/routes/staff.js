@@ -1,7 +1,10 @@
 const express = require('express');
 const router = express.Router();
+const bcrypt = require('bcrypt');
 const { Resend } = require('resend');
 const pool = require('../db');
+
+const SALT_ROUNDS = 10;
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM_EMAIL = process.env.FROM_EMAIL || 'noreply@mryc.online';
@@ -172,7 +175,8 @@ router.post('/login', async (req, res) => {
     const result = await pool.query('SELECT * FROM staff WHERE username = $1', [username?.trim()]);
     if (result.rows.length === 0) return res.status(401).json({ error: 'Invalid username or password' });
     const staff = result.rows[0];
-    if (staff.password !== password) return res.status(401).json({ error: 'Invalid username or password' });
+    const valid = await bcrypt.compare(password, staff.password);
+    if (!valid) return res.status(401).json({ error: 'Invalid username or password' });
     res.json({
       id: String(staff.id),
       name: staff.name,
@@ -196,10 +200,12 @@ router.patch('/change-password', async (req, res) => {
     const result = await pool.query('SELECT * FROM staff WHERE username = $1', [username]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Staff not found' });
     const staff = result.rows[0];
-    if (staff.password !== currentPassword) return res.status(401).json({ error: 'Current password is incorrect' });
+    const valid = await bcrypt.compare(currentPassword, staff.password);
+    if (!valid) return res.status(401).json({ error: 'Current password is incorrect' });
+    const hashed = await bcrypt.hash(newPassword, SALT_ROUNDS);
     await pool.query(
       'UPDATE staff SET password = $1, must_change_password = FALSE WHERE id = $2',
-      [newPassword, staff.id]
+      [hashed, staff.id]
     );
     res.json({ success: true });
   } catch (err) {
@@ -209,7 +215,7 @@ router.patch('/change-password', async (req, res) => {
 });
 
 // ── GET /api/staff — list all (admin only) ─────────────────────────────────
-router.get('/', requireAdmin, async (req, res) => {
+router.get('/', requireAdmin, async (_req, res) => {
   try {
     const result = await pool.query('SELECT * FROM staff ORDER BY created_at DESC');
     res.json(result.rows.map(toStaff));
@@ -226,7 +232,13 @@ router.post('/', requireAdmin, async (req, res) => {
     return res.status(400).json({ error: 'Name, email and state are required' });
   }
 
-  const password = generatePassword();
+  // Prevent duplicate email
+  const emailCheck = await pool.query('SELECT id FROM staff WHERE email = $1', [email.trim()]);
+  if (emailCheck.rows.length > 0) {
+    return res.status(409).json({ error: 'A staff account with this email already exists' });
+  }
+
+  const plainPassword = generatePassword();
   let username = generateUsername(name);
 
   // Ensure username is unique
@@ -239,16 +251,17 @@ router.post('/', requireAdmin, async (req, res) => {
   }
 
   try {
+    const hashedPassword = await bcrypt.hash(plainPassword, SALT_ROUNDS);
     const result = await pool.query(
       'INSERT INTO staff (name, email, username, password, state, must_change_password) VALUES ($1,$2,$3,$4,$5,TRUE) RETURNING *',
-      [name.trim(), email.trim(), username, password, state]
+      [name.trim(), email.trim(), username, hashedPassword, state]
     );
     const created = toStaff(result.rows[0]);
 
     // Send welcome email — if it fails, still return success but flag it
     let emailSent = true;
     try {
-      await sendWelcomeEmail({ name: name.trim(), email: email.trim(), username, password, state });
+      await sendWelcomeEmail({ name: name.trim(), email: email.trim(), username, password: plainPassword, state });
     } catch (emailErr) {
       console.error('Welcome email failed:', emailErr.message);
       emailSent = false;
