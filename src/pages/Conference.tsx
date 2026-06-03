@@ -496,10 +496,10 @@ const Conference = () => {
               </button>
             ) : (
               <button
-                type="button" onClick={handleSubmit} disabled={loading}
-                className="flex-1 py-4 rounded-xl font-bold text-white text-base sm:text-lg bg-purple-600 hover:bg-purple-700 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                type="button" onClick={handleSubmit}
+                className="flex-1 py-4 rounded-xl font-bold text-white text-base sm:text-lg bg-purple-600 hover:bg-purple-700 active:scale-95 transition-all duration-200"
               >
-                {loading ? 'Saving your registration…' : `Pay ₦${CONFERENCE_FEE.toLocaleString()} & Register`}
+                {`Pay ₦${CONFERENCE_FEE.toLocaleString()} & Register`}
               </button>
             )}
           </div>
