@@ -67,18 +67,53 @@ const ConferenceSlip = () => {
           }
         }
 
-        /* ── Print: show ONLY the slip card ── */
+        /* ── Print: slip card only, with colours ── */
         @media print {
-          /* Hide everything on the page */
-          body * { visibility: hidden; }
-          /* Then reveal only the slip card and its children */
-          #slip-card, #slip-card * { visibility: visible; }
-          /* Position the slip at the top-left so it fills the page */
+          @page {
+            margin: 8mm;
+            size: A4;
+          }
+
+          /* Force background colours to print (fixes Chrome stripping them) */
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+
+          /* White page, no dark background */
+          html, body {
+            background: white !important;
+          }
+
+          /* Remove the dark navy from the page wrapper (fixes Safari) */
+          .slip-page {
+            background: white !important;
+            min-height: auto !important;
+            display: block !important;
+            padding: 0 !important;
+          }
+
+          /* Hide EVERYTHING with the visibility trick */
+          body * {
+            visibility: hidden !important;
+          }
+
+          /* Then reveal only the slip card and everything inside it */
+          #slip-card,
+          #slip-card * {
+            visibility: visible !important;
+          }
+
+          /* Position the card at the top so it fills the printed page */
           #slip-card {
             position: fixed;
             top: 0;
             left: 0;
+            right: 0;
             width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
             box-shadow: none !important;
             border: 1px solid #e5e7eb !important;
             border-radius: 0 !important;
@@ -143,7 +178,7 @@ const ConferenceSlip = () => {
           </div>
         </div>
 
-        {/* Action buttons — below the slip, hidden when printing */}
+        {/* Action buttons — below the slip, never printed */}
         <div className="flex flex-col sm:flex-row gap-3 mt-6 w-full max-w-md">
           <button
             onClick={() => window.print()}
@@ -163,7 +198,9 @@ const ConferenceSlip = () => {
         </div>
 
         <p className="text-gray-500 text-xs text-center mt-4 max-w-sm">
-          Screenshot this page or use the Print button to save your slip.
+          Screenshot or use the Print button to save your slip.
+          <br />
+          <span className="text-gray-600">Tip: disable "Headers and footers" in your browser print settings for a cleaner output.</span>
         </p>
       </div>
     </>

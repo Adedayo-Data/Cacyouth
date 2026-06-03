@@ -9,12 +9,33 @@ interface Registration {
   email: string;
   phone: string;
   state: string;
+  dob?: string;
   uniqueCode: string;
   paymentRef: string;
   amount: number;
   verified: boolean;
   verifiedAt?: string;
   registeredAt: string;
+}
+
+function calcAge(dob?: string): number | null {
+  if (!dob) return null;
+  const birth = new Date(dob);
+  if (isNaN(birth.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const notYet = today.getMonth() < birth.getMonth() ||
+    (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate());
+  if (notYet) age--;
+  return age;
+}
+
+function ageCategory(age: number | null): { label: string; cls: string } {
+  if (age === null) return { label: '—', cls: 'text-gray-500' };
+  if (age < 18)  return { label: 'Teenager',    cls: 'text-blue-400' };
+  if (age <= 25) return { label: 'Youth',        cls: 'text-green-400' };
+  if (age <= 35) return { label: 'Young Adult',  cls: 'text-yellow-400' };
+  return           { label: 'Adult',             cls: 'text-orange-400' };
 }
 
 interface StaffMember {
@@ -424,7 +445,7 @@ const AdminConsole = () => {
                     <table className="w-full text-sm">
                       <thead className="bg-white/5">
                         <tr>
-                          {['#', 'Name', 'State', 'Code', 'Phone', 'Date', 'Status', 'Action'].map(h => (
+                          {['#', 'Name', 'State', 'Code', 'Phone', 'Age', 'Date', 'Status', 'Action'].map(h => (
                             <th key={h} className="px-4 py-3 text-left text-gray-400 font-semibold uppercase text-xs tracking-wider whitespace-nowrap">{h}</th>
                           ))}
                         </tr>
@@ -442,6 +463,18 @@ const AdminConsole = () => {
                             </td>
                             <td className="px-4 py-3 font-mono font-bold text-amber-400 tracking-widest text-sm">{reg.uniqueCode}</td>
                             <td className="px-4 py-3 text-gray-300 text-sm">{reg.phone}</td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              {(() => {
+                                const age = calcAge(reg.dob);
+                                const cat = ageCategory(age);
+                                return (
+                                  <div className="flex flex-col gap-0.5">
+                                    <span className="text-white text-xs font-bold">{age !== null ? `${age} yrs` : '—'}</span>
+                                    <span className={`text-xs font-semibold ${cat.cls}`}>{cat.label}</span>
+                                  </div>
+                                );
+                              })()}
+                            </td>
                             <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">{new Date(reg.registeredAt).toLocaleDateString('en-NG')}</td>
                             <td className="px-4 py-3">
                               <span className={`px-2 py-1 rounded-md text-xs font-semibold ${reg.verified ? 'bg-green-900/40 text-green-400' : 'bg-white/5 text-gray-400'}`}>
@@ -482,6 +515,16 @@ const AdminConsole = () => {
                           <span className="text-gray-400">{reg.phone}</span>
                           <span className="text-gray-500">{new Date(reg.registeredAt).toLocaleDateString('en-NG')}</span>
                         </div>
+                        {(() => {
+                          const age = calcAge(reg.dob);
+                          const cat = ageCategory(age);
+                          return age !== null ? (
+                            <div className="flex items-center gap-2">
+                              <span className="text-white text-xs font-bold">{age} yrs</span>
+                              <span className={`px-2 py-0.5 rounded-md bg-white/5 text-xs font-semibold ${cat.cls}`}>{cat.label}</span>
+                            </div>
+                          ) : null;
+                        })()}
                         <div className="flex items-center justify-between gap-2">
                           <span className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${reg.verified ? 'bg-green-900/40 text-green-400' : 'bg-white/5 text-gray-400'}`}>
                             {reg.verified ? '✓ Verified' : 'Pending'}

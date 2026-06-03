@@ -4,7 +4,8 @@ const crypto = require('crypto');
 const { sha3_512 } = require('js-sha3');
 const pool = require('../db');
 
-const OPAY_BASE_URL = process.env.NODE_ENV === 'production'
+// Use OPAY_LIVE=true to switch to live API. Everything else = sandbox.
+const OPAY_BASE_URL = process.env.OPAY_LIVE === 'true'
   ? 'https://liveapi.opaycheckout.com'
   : 'https://testapi.opaycheckout.com';
 
