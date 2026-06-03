@@ -146,8 +146,6 @@ const Conference = () => {
     const txRef = `CACYOUTH-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 
     // Store slip data so onclose can navigate after the popup fully closes
-    let slipData: { name: string; state: string; dccZone: string; phone: string; uniqueCode: string } | null = null;
-
     window.FlutterwaveCheckout?.({
       public_key: import.meta.env.VITE_FLW_PUBLIC_KEY,
       tx_ref: txRef,
