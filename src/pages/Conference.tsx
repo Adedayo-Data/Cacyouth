@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { generateUniqueCode } from '../utils/codeGenerator';
 
 const API = import.meta.env.VITE_API_URL ?? '';
@@ -71,11 +70,9 @@ const STEP_META = [
 ];
 
 const Conference = () => {
-  const navigate = useNavigate();
   const [step, setStep]       = useState(1);
   const [form, setForm]       = useState<FormData>(empty);
   const [errors, setErrors]   = useState<Partial<Record<FormField, string>>>({});
-  const [loading, setLoading] = useState(false);
   const [scriptReady, setScriptReady] = useState(false);
 
   useEffect(() => {
