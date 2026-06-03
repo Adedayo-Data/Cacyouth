@@ -160,35 +160,30 @@ const Conference = () => {
         description: '2026 Conference Registration Fee',
         logo: `${window.location.origin}/favicon.png`,
       },
-      callback: async (response: { status: string; transaction_id: number; tx_ref: string }) => {
+      callback: (response: { status: string; transaction_id: number; tx_ref: string }) => {
         if (response.status === 'successful') {
-          setLoading(true);
-          try {
-            await fetch(`${API}/api/registrations`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                ...form,
-                name: fullName,
-                uniqueCode,
-                paymentRef: String(response.transaction_id),
-                txRef: response.tx_ref,
-                amount: CONFERENCE_FEE,
-                paymentStatus: 'success',
-              }),
-            });
-            // Store slip data — navigation happens in onclose once the popup closes
-            slipData = { name: fullName, state: form.state, dccZone: form.dccZone, phone: form.phone, uniqueCode };
-          } catch {
-            alert(
-              `Payment successful but registration could not be saved. ` +
-              `Please contact us with your payment reference: ${response.transaction_id}`
-            );
-            setLoading(false);
-          }
+          // Set slip data immediately so onclose can navigate even if fetch is still running
+          slipData = { name: fullName, state: form.state, dccZone: form.dccZone, phone: form.phone, uniqueCode };
+
+          // Save to DB — fire and don't block the popup close
+          fetch(`${API}/api/registrations`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ...form,
+              name: fullName,
+              uniqueCode,
+              paymentRef: String(response.transaction_id),
+              txRef: response.tx_ref,
+              amount: CONFERENCE_FEE,
+              paymentStatus: 'success',
+            }),
+          })
+            .then(r => { if (!r.ok) console.error('Registration save failed:', r.status); })
+            .catch(err => console.error('Registration save error:', err));
         }
       },
-      // Runs when the popup closes — navigate to slip if payment succeeded
+      // Navigate to slip once the user closes the popup
       onclose: () => {
         if (slipData) {
           navigate('/conference/slip', { state: slipData });
