@@ -92,8 +92,9 @@ router.post('/initiate', async (req, res) => {
     });
 
     const opayData = await opayRes.json();
+    console.log('OPay response:', JSON.stringify(opayData));
     if (opayData.code !== '00000') {
-      throw new Error(opayData.message || 'OPay returned an error');
+      throw new Error(`OPay error [${opayData.code}]: ${opayData.message}`);
     }
 
     res.json({
