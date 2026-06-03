@@ -134,17 +134,9 @@ const Conference = () => {
 
   const fullName = [form.firstName, form.middleName, form.lastName].filter(Boolean).join(' ');
 
-  // When "Other" is selected, dccZone holds the actual Nigerian state (e.g. "Lagos").
-  // Use that in the code so it reads MRY/LAGOS/... not MRY/OTHER/...
   const stateForCode = form.state === 'OTHER'
     ? form.dccZone.toUpperCase()
     : (form.state as string);
-
-  const handleTestSkip = () => {
-    if (!validateStep(step)) return;
-    const uniqueCode = generateUniqueCode(stateForCode);
-    navigate('/conference/slip', { state: { ...form, name: fullName, uniqueCode } });
-  };
 
   const handleSubmit = () => {
     if (!validateStep(3)) return;
@@ -152,6 +144,9 @@ const Conference = () => {
 
     const uniqueCode = generateUniqueCode(stateForCode);
     const txRef = `CACYOUTH-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+
+    // Store slip data so onclose can navigate after the popup fully closes
+    let slipData: { name: string; state: string; dccZone: string; phone: string; uniqueCode: string } | null = null;
 
     window.FlutterwaveCheckout?.({
       public_key: import.meta.env.VITE_FLW_PUBLIC_KEY,
@@ -182,15 +177,8 @@ const Conference = () => {
                 paymentStatus: 'success',
               }),
             });
-            navigate('/conference/slip', {
-              state: {
-                name: fullName,
-                state: form.state,
-                dccZone: form.dccZone,
-                phone: form.phone,
-                uniqueCode,
-              },
-            });
+            // Store slip data — navigation happens in onclose once the popup closes
+            slipData = { name: fullName, state: form.state, dccZone: form.dccZone, phone: form.phone, uniqueCode };
           } catch {
             alert(
               `Payment successful but registration could not be saved. ` +
@@ -200,7 +188,12 @@ const Conference = () => {
           }
         }
       },
-      onclose: () => {},
+      // Runs when the popup closes — navigate to slip if payment succeeded
+      onclose: () => {
+        if (slipData) {
+          navigate('/conference/slip', { state: slipData });
+        }
+      },
     });
   };
 
@@ -520,14 +513,6 @@ const Conference = () => {
             )}
           </div>
 
-          {step === 3 && (
-            <button
-              type="button" onClick={handleTestSkip}
-              className="w-full mt-3 py-3 rounded-xl font-semibold text-amber-400 border border-amber-500/40 hover:bg-amber-500/10 active:scale-95 transition-all duration-200 text-sm"
-            >
-              Test Registration (Skip Payment)
-            </button>
-          )}
         </div>
 
         <p className="text-gray-600 text-xs text-center mt-5 leading-relaxed">
