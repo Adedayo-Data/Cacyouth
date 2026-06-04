@@ -47,6 +47,7 @@ interface FormData {
   lastName: string;
   dob: string;
   dccZone: string;
+  denomination: string;
   gender: string;
   phone: string;
   email: string;
@@ -59,7 +60,7 @@ interface FormData {
 type FormField = keyof FormData;
 
 const empty: FormData = {
-  firstName: '', middleName: '', lastName: '', dob: '', dccZone: '', gender: '',
+  firstName: '', middleName: '', lastName: '', dob: '', dccZone: '', denomination: '', gender: '',
   phone: '', email: '', state: '', status: '', occupation: '', qualification: '',
 };
 
@@ -92,8 +93,8 @@ const Conference = () => {
 
   const pick = (field: FormField, value: string) => {
     if (field === 'state') {
-      setForm(prev => ({ ...prev, state: value as SelectedState, dccZone: '' }));
-      setErrors(prev => ({ ...prev, state: undefined, dccZone: undefined }));
+      setForm(prev => ({ ...prev, state: value as SelectedState, dccZone: '', denomination: '' }));
+      setErrors(prev => ({ ...prev, state: undefined, dccZone: undefined, denomination: undefined }));
     } else {
       setForm(prev => ({ ...prev, [field]: value }));
       setErrors(prev => ({ ...prev, [field]: undefined }));
@@ -114,6 +115,8 @@ const Conference = () => {
       if (!form.dccZone.trim())   errs.dccZone = form.state === 'OTHER'
         ? 'Please select your state'
         : 'DCC / Zone is required';
+      if (form.state === 'OTHER' && !form.denomination.trim())
+        errs.denomination = 'Please enter your church / denomination';
     }
     if (s === 3) {
       if (!form.phone.trim())        errs.phone         = 'Phone number is required';
@@ -349,6 +352,24 @@ const Conference = () => {
           )}
           {errors.dccZone && <p className="text-red-400 text-xs mt-1.5">{errors.dccZone}</p>}
         </div>
+
+        {/* Denomination — only for Other state */}
+        {form.state === 'OTHER' && (
+          <div>
+            <label className="block text-gray-300 text-sm font-semibold mb-2">
+              Church / Denomination
+            </label>
+            <input
+              type="text"
+              name="denomination"
+              value={form.denomination}
+              onChange={handleChange}
+              placeholder="e.g. CAC Bethel Assembly, RCCG Grace Parish"
+              className={inputCls('denomination')}
+            />
+            {errors.denomination && <p className="text-red-400 text-xs mt-1.5">{errors.denomination}</p>}
+          </div>
+        )}
       </div>
     );
 

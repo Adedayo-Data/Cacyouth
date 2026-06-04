@@ -11,6 +11,7 @@ interface Registration {
   state: string;
   dob?: string;
   dccZone?: string;
+  denomination?: string;
   uniqueCode: string;
   verified: boolean;
   verifiedAt?: string;
@@ -108,9 +109,10 @@ const VerifyModal = ({
         {/* Details */}
         <div className="space-y-3">
           {[
-            { label: 'Full Name',  value: reg.name },
-            { label: 'Phone',      value: reg.phone },
-            { label: 'State',      value: STATE_LABELS[reg.state] ?? reg.state },
+            { label: 'Full Name',    value: reg.name },
+            { label: 'Phone',        value: reg.phone },
+            { label: 'State',        value: STATE_LABELS[reg.state] ?? reg.state },
+            { label: 'Denomination', value: reg.denomination },
           ].map(({ label, value }) => value ? (
             <div key={label} className="flex justify-between items-center py-2 border-b border-white/5">
               <span className="text-gray-400 text-sm">{label}</span>

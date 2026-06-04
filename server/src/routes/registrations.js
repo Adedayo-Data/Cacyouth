@@ -10,6 +10,7 @@ const toReg = (row) => ({
   name: row.name,
   dob: row.dob,
   dccZone: row.dcc_zone,
+  denomination: row.denomination,
   gender: row.gender,
   phone: row.phone,
   email: row.email,
@@ -36,7 +37,7 @@ const requireAdmin = (req, res, next) => {
 // POST /api/registrations — create (no auth, called after payment)
 router.post('/', async (req, res) => {
   const {
-    firstName, middleName, lastName, name, dob, dccZone, gender,
+    firstName, middleName, lastName, name, dob, dccZone, denomination, gender,
     phone, email, state, status, occupation, qualification,
     uniqueCode, paymentRef, txRef, amount,
   } = req.body;
@@ -44,13 +45,13 @@ router.post('/', async (req, res) => {
   try {
     const result = await pool.query(
       `INSERT INTO registrations
-        (first_name, middle_name, last_name, name, dob, dcc_zone, gender,
+        (first_name, middle_name, last_name, name, dob, dcc_zone, denomination, gender,
          phone, email, state, status, occupation, qualification,
          unique_code, payment_ref, tx_ref, amount)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
        RETURNING *`,
       [
-        firstName, middleName || null, lastName, name, dob, dccZone, gender,
+        firstName, middleName || null, lastName, name, dob, dccZone, denomination || null, gender,
         phone, email, state, status, occupation, qualification,
         uniqueCode, paymentRef || null, txRef || null, amount || 3000,
       ]
@@ -97,7 +98,7 @@ router.post('/lookup', async (req, res) => {
 });
 
 // GET /api/registrations — all registrations (admin only)
-router.get('/', requireAdmin, async (req, res) => {
+router.get('/', requireAdmin, async (_req, res) => {
   try {
     const result = await pool.query('SELECT * FROM registrations ORDER BY registered_at DESC');
     res.json(result.rows.map(toReg));

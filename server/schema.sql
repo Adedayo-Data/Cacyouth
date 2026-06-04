@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS registrations (
   status        VARCHAR(50),
   occupation    VARCHAR(200),
   qualification VARCHAR(100),
+  denomination  VARCHAR(200),
   unique_code   VARCHAR(60)   UNIQUE NOT NULL,
   payment_ref   VARCHAR(200),
   tx_ref        VARCHAR(200),
@@ -37,12 +38,15 @@ CREATE TABLE IF NOT EXISTS staff (
   created_at          TIMESTAMPTZ  DEFAULT NOW()
 );
 
--- Safe migration: add new columns if they don't exist yet
+-- Safe migration: add columns if they don't exist yet
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='staff' AND column_name='email') THEN
     ALTER TABLE staff ADD COLUMN email VARCHAR(200);
   END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='staff' AND column_name='must_change_password') THEN
     ALTER TABLE staff ADD COLUMN must_change_password BOOLEAN DEFAULT TRUE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='registrations' AND column_name='denomination') THEN
+    ALTER TABLE registrations ADD COLUMN denomination VARCHAR(200);
   END IF;
 END $$;
