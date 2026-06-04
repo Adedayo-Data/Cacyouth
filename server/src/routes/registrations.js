@@ -62,6 +62,40 @@ router.post('/', async (req, res) => {
   }
 });
 
+// POST /api/registrations/lookup — find by unique code (admin or staff)
+router.post('/lookup', async (req, res) => {
+  const adminKey = req.headers['x-admin-key'];
+  const staffId  = req.headers['x-staff-id'];
+  if (!adminKey && !staffId) return res.status(401).json({ error: 'Unauthorized' });
+  if (adminKey && adminKey !== process.env.ADMIN_PASSWORD) return res.status(401).json({ error: 'Unauthorized' });
+
+  const { code } = req.body;
+  if (!code?.trim()) return res.status(400).json({ error: 'Code is required' });
+
+  try {
+    const result = await pool.query(
+      'SELECT * FROM registrations WHERE UPPER(unique_code) = UPPER($1)',
+      [code.trim()]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Registration not found' });
+    const reg = result.rows[0];
+
+    // Staff can only look up registrants from their assigned state
+    if (staffId) {
+      const staffRow = await pool.query('SELECT state FROM staff WHERE id = $1', [staffId]);
+      if (staffRow.rows.length === 0) return res.status(401).json({ error: 'Unauthorized' });
+      if (staffRow.rows[0].state !== reg.state) {
+        return res.status(403).json({ error: 'This registrant belongs to a different state' });
+      }
+    }
+
+    res.json(toReg(reg));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Lookup failed' });
+  }
+});
+
 // GET /api/registrations — all registrations (admin only)
 router.get('/', requireAdmin, async (req, res) => {
   try {

@@ -1,19 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 const API = import.meta.env.VITE_API_URL ?? '';
-const inputCls = (err?: string) =>
+const inputCls = (err?: boolean) =>
   `w-full bg-white/5 border ${err ? 'border-red-500' : 'border-white/10'} rounded-xl px-4 py-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all text-base`;
 
 interface Registration {
   id: string;
   name: string;
-  email: string;
-  phone: string;
+  phone?: string;
   state: string;
+  dob?: string;
+  dccZone?: string;
   uniqueCode: string;
   verified: boolean;
   verifiedAt?: string;
-  registeredAt: string;
 }
 
 interface StaffSession {
@@ -25,38 +25,35 @@ interface StaffSession {
 }
 
 const STATE_LABELS: Record<string, string> = {
-  FCT: 'FCT (Abuja)',
-  NIGER: 'Niger State',
-  KADUNA: 'Kaduna State',
-  OTHER: 'Other States',
+  FCT: 'FCT (Abuja)', NIGER: 'Niger State', KADUNA: 'Kaduna State', OTHER: 'Other States',
 };
 
-const STATE_THEME: Record<string, { bg: string; text: string; border: string; badge: string }> = {
-  FCT: {
-    bg: 'from-blue-950 to-gray-950',
-    text: 'text-blue-400',
-    border: 'border-blue-500/30',
-    badge: 'bg-blue-900/50 text-blue-300',
-  },
-  NIGER: {
-    bg: 'from-green-950 to-gray-950',
-    text: 'text-green-400',
-    border: 'border-green-500/30',
-    badge: 'bg-green-900/50 text-green-300',
-  },
-  KADUNA: {
-    bg: 'from-yellow-950 to-gray-950',
-    text: 'text-yellow-400',
-    border: 'border-yellow-500/30',
-    badge: 'bg-yellow-900/50 text-yellow-300',
-  },
-  OTHER: {
-    bg: 'from-purple-950 to-gray-950',
-    text: 'text-purple-400',
-    border: 'border-purple-500/30',
-    badge: 'bg-purple-900/50 text-purple-300',
-  },
+const STATE_THEME: Record<string, { bg: string; text: string; border: string }> = {
+  FCT:    { bg: 'from-blue-950 to-gray-950',   text: 'text-blue-400',   border: 'border-blue-500/30' },
+  NIGER:  { bg: 'from-green-950 to-gray-950',  text: 'text-green-400',  border: 'border-green-500/30' },
+  KADUNA: { bg: 'from-yellow-950 to-gray-950', text: 'text-yellow-400', border: 'border-yellow-500/30' },
+  OTHER:  { bg: 'from-purple-950 to-gray-950', text: 'text-purple-400', border: 'border-purple-500/30' },
 };
+
+function calcAge(dob?: string): number | null {
+  if (!dob) return null;
+  const birth = new Date(dob);
+  if (isNaN(birth.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const notYet = today.getMonth() < birth.getMonth() ||
+    (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate());
+  if (notYet) age--;
+  return age;
+}
+
+function ageCategory(age: number | null): { label: string; cls: string } {
+  if (age === null) return { label: '—', cls: 'text-gray-400' };
+  if (age < 18)  return { label: 'Teenager',   cls: 'text-blue-400' };
+  if (age <= 25) return { label: 'Youth',       cls: 'text-green-400' };
+  if (age <= 35) return { label: 'Young Adult', cls: 'text-yellow-400' };
+  return             { label: 'Adult',          cls: 'text-orange-400' };
+}
 
 const EyeIcon = ({ open }: { open: boolean }) =>
   open ? (
@@ -70,35 +67,199 @@ const EyeIcon = ({ open }: { open: boolean }) =>
     </svg>
   );
 
+/* ── Verification Modal ─────────────────────────────────────────────────── */
+const VerifyModal = ({
+  reg, authHeader, onClose, onUpdated,
+}: {
+  reg: Registration;
+  authHeader: Record<string, string>;
+  onClose: () => void;
+  onUpdated: (r: Registration) => void;
+}) => {
+  const [verifying, setVerifying] = useState(false);
+  const age = calcAge(reg.dob);
+  const cat = ageCategory(age);
+
+  const handleVerify = async () => {
+    setVerifying(true);
+    try {
+      const res = await fetch(`${API}/api/registrations/${reg.id}/verify`, {
+        method: 'PATCH',
+        headers: authHeader,
+      });
+      if (!res.ok) throw new Error();
+      const updated: Registration = await res.json();
+      onUpdated(updated);
+    } catch { alert('Failed to update. Please try again.'); }
+    finally { setVerifying(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 px-4">
+      <div className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-sm p-6 space-y-5">
+
+        {/* Status banner */}
+        <div className={`rounded-xl px-4 py-3 text-center text-sm font-bold ${
+          reg.verified ? 'bg-green-900/40 text-green-400 border border-green-500/30' : 'bg-white/5 text-gray-400 border border-white/10'
+        }`}>
+          {reg.verified ? '✓ Already Verified' : '○ Not Yet Verified'}
+        </div>
+
+        {/* Details */}
+        <div className="space-y-3">
+          {[
+            { label: 'Full Name',  value: reg.name },
+            { label: 'Phone',      value: reg.phone },
+            { label: 'State',      value: STATE_LABELS[reg.state] ?? reg.state },
+          ].map(({ label, value }) => value ? (
+            <div key={label} className="flex justify-between items-center py-2 border-b border-white/5">
+              <span className="text-gray-400 text-sm">{label}</span>
+              <span className="text-white font-semibold text-sm">{value}</span>
+            </div>
+          ) : null)}
+
+          {/* Age & Category */}
+          <div className="flex justify-between items-center py-2 border-b border-white/5">
+            <span className="text-gray-400 text-sm">Age</span>
+            <div className="flex items-center gap-2">
+              <span className="text-white font-semibold text-sm">{age !== null ? `${age} yrs` : '—'}</span>
+              <span className={`px-2 py-0.5 rounded-md bg-white/5 text-xs font-semibold ${cat.cls}`}>{cat.label}</span>
+            </div>
+          </div>
+
+          <div className="flex justify-between items-center py-2">
+            <span className="text-gray-400 text-sm">Reg. Code</span>
+            <span className="text-amber-400 font-mono font-bold text-sm tracking-wider">{reg.uniqueCode}</span>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-3 pt-1">
+          <button
+            onClick={onClose}
+            className="flex-1 py-3 rounded-xl font-semibold text-gray-300 border border-white/20 hover:border-white/40 transition-all text-sm"
+          >
+            Close
+          </button>
+          <button
+            onClick={handleVerify}
+            disabled={verifying}
+            className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all disabled:opacity-50 active:scale-95 ${
+              reg.verified
+                ? 'bg-red-900/40 hover:bg-red-900/60 text-red-300 border border-red-500/30'
+                : 'bg-green-600 hover:bg-green-700 text-white'
+            }`}
+          >
+            {verifying ? '…' : reg.verified ? 'Unverify' : '✓ Mark as Verified'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ── Code Lookup Panel ──────────────────────────────────────────────────── */
+export const CodeLookup = ({
+  prefix, authHeader, themeText,
+}: {
+  prefix: string;
+  authHeader: Record<string, string>;
+  themeText: string;
+}) => {
+  const [suffix, setSuffix] = useState('');
+  const [looking, setLooking] = useState(false);
+  const [found, setFound] = useState<Registration | null>(null);
+  const [notFound, setNotFound] = useState(false);
+  const [error, setError] = useState('');
+
+  const fullCode = `${prefix}${suffix.toUpperCase()}`;
+
+  const handleLookup = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!suffix.trim()) return;
+    setLooking(true);
+    setNotFound(false);
+    setFound(null);
+    setError('');
+    try {
+      const res = await fetch(`${API}/api/registrations/lookup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeader },
+        body: JSON.stringify({ code: fullCode }),
+      });
+      if (res.status === 404) { setNotFound(true); return; }
+      if (res.status === 403) { setError('This code belongs to a different state.'); return; }
+      if (!res.ok) throw new Error();
+      setFound(await res.json());
+    } catch { setError('Something went wrong. Please try again.'); }
+    finally { setLooking(false); }
+  };
+
+  return (
+    <>
+      <form onSubmit={handleLookup} className="space-y-4">
+        <div>
+          <label className="block text-gray-300 text-sm font-semibold mb-2">Enter Registration Code</label>
+          <div className="flex items-center gap-0 bg-white/5 border border-white/10 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-purple-500 transition-all">
+            <span className={`px-4 py-4 font-mono font-bold text-sm shrink-0 border-r border-white/10 ${themeText}`}>
+              {prefix}
+            </span>
+            <input
+              type="text"
+              value={suffix}
+              onChange={e => { setSuffix(e.target.value.toUpperCase()); setNotFound(false); setError(''); }}
+              placeholder="XXXXXX"
+              maxLength={20}
+              className="flex-1 bg-transparent px-4 py-4 text-white placeholder-gray-600 font-mono font-bold text-sm focus:outline-none uppercase"
+            />
+          </div>
+          {notFound && <p className="text-red-400 text-sm mt-2">No registration found for <span className="font-mono">{fullCode}</span></p>}
+          {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
+        </div>
+
+        <button
+          type="submit"
+          disabled={!suffix.trim() || looking}
+          className="w-full py-4 bg-purple-600 hover:bg-purple-700 rounded-xl text-white font-bold transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {looking ? 'Looking up…' : 'Look Up'}
+        </button>
+      </form>
+
+      {found && (
+        <VerifyModal
+          reg={found}
+          authHeader={authHeader}
+          onClose={() => { setFound(null); setSuffix(''); }}
+          onUpdated={updated => setFound(updated)}
+        />
+      )}
+    </>
+  );
+};
+
+/* ════════════════════════════════════════════════════════════════════════ */
+
 const StaffPortal = () => {
-  /* ── Auth ── */
   const [session, setSession] = useState<StaffSession | null>(() => {
     const saved = sessionStorage.getItem('cac_staff');
     return saved ? (JSON.parse(saved) as StaffSession) : null;
   });
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [username, setUsername]   = useState('');
+  const [password, setPassword]   = useState('');
   const [loginError, setLoginError] = useState('');
-  const [showPwd, setShowPwd] = useState(false);
+  const [showPwd, setShowPwd]     = useState(false);
   const [loggingIn, setLoggingIn] = useState(false);
 
-  /* ── Data ── */
-  const [registrations, setRegistrations] = useState<Registration[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState('');
-  const [verifying, setVerifying] = useState<string | null>(null);
-
-  /* ── Force password change ── */
-  const [newPassword, setNewPassword] = useState('');
+  /* Force password change */
+  const [newPassword, setNewPassword]         = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [pwdError, setPwdError] = useState('');
-  const [changingPwd, setChangingPwd] = useState(false);
-  const [showNewPwd, setShowNewPwd] = useState(false);
+  const [pwdError, setPwdError]               = useState('');
+  const [changingPwd, setChangingPwd]         = useState(false);
+  const [showNewPwd, setShowNewPwd]           = useState(false);
 
-  /* ── Login ── */
   const handleLogin = async () => {
-    setLoggingIn(true);
-    setLoginError('');
+    setLoggingIn(true); setLoginError('');
     try {
       const res = await fetch(`${API}/api/staff/login`, {
         method: 'POST',
@@ -106,18 +267,19 @@ const StaffPortal = () => {
         body: JSON.stringify({ username: username.trim(), password }),
       });
       if (res.status === 401) { setLoginError('Invalid username or password.'); return; }
-      if (!res.ok) throw new Error('Login error');
+      if (!res.ok) throw new Error();
       const sess: StaffSession = await res.json();
       sessionStorage.setItem('cac_staff', JSON.stringify(sess));
       setSession(sess);
-    } catch {
-      setLoginError('An error occurred. Please try again.');
-    } finally {
-      setLoggingIn(false);
-    }
+    } catch { setLoginError('An error occurred. Please try again.'); }
+    finally { setLoggingIn(false); }
   };
 
-  /* ── Change password (forced on first login) ── */
+  const handleLogout = () => {
+    sessionStorage.removeItem('cac_staff');
+    setSession(null);
+  };
+
   const handleChangePassword = async () => {
     setPwdError('');
     if (newPassword.length < 8) { setPwdError('Password must be at least 8 characters'); return; }
@@ -128,74 +290,15 @@ const StaffPortal = () => {
       const res = await fetch(`${API}/api/staff/change-password`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: session.username,
-          currentPassword: password, // still in state from login
-          newPassword,
-        }),
+        body: JSON.stringify({ username: session.username, currentPassword: password, newPassword }),
       });
       const data = await res.json();
       if (!res.ok) { setPwdError(data.error || 'Failed to change password'); return; }
       const updated = { ...session, mustChangePassword: false };
       sessionStorage.setItem('cac_staff', JSON.stringify(updated));
       setSession(updated);
-    } catch {
-      setPwdError('An error occurred. Please try again.');
-    } finally {
-      setChangingPwd(false);
-    }
-  };
-
-  const handleLogout = () => {
-    sessionStorage.removeItem('cac_staff');
-    setSession(null);
-    setRegistrations([]);
-  };
-
-  /* ── Fetch registrations for this state ── */
-  const fetchRegistrations = async (state: string) => {
-    if (!session) return;
-    setLoading(true);
-    try {
-      const res = await fetch(`${API}/api/registrations/state/${state}`, {
-        headers: { 'x-staff-id': session.id },
-      });
-      if (!res.ok) throw new Error('Fetch failed');
-      setRegistrations(await res.json());
-    } catch (err) { console.error(err); }
-    finally { setLoading(false); }
-  };
-
-  useEffect(() => {
-    if (session) fetchRegistrations(session.state);
-  }, [session]);
-
-  /* ── Verify ── */
-  const handleVerify = async (reg: Registration) => {
-    if (!session) return;
-    setVerifying(reg.id);
-    try {
-      const res = await fetch(`${API}/api/registrations/${reg.id}/verify`, {
-        method: 'PATCH',
-        headers: { 'x-staff-id': session.id },
-      });
-      if (!res.ok) throw new Error('Verify failed');
-      const updated: Registration = await res.json();
-      setRegistrations(prev => prev.map(r => r.id === reg.id ? updated : r));
-    } catch (err) { console.error(err); }
-    finally { setVerifying(null); }
-  };
-
-  const filtered = registrations.filter(r => {
-    if (!search.trim()) return true;
-    const s = search.toLowerCase();
-    return r.name.toLowerCase().includes(s) || r.uniqueCode.toLowerCase().includes(s) || r.phone.includes(s);
-  });
-
-  const stats = {
-    total: registrations.length,
-    verified: registrations.filter(r => r.verified).length,
-    pending: registrations.filter(r => !r.verified).length,
+    } catch { setPwdError('An error occurred. Please try again.'); }
+    finally { setChangingPwd(false); }
   };
 
   /* ════ LOGIN SCREEN ════ */
@@ -208,49 +311,32 @@ const StaffPortal = () => {
             <h1 className="text-white text-2xl font-black">Staff Portal</h1>
             <p className="text-gray-400 text-sm mt-1">CACYOF 2026 Youth Conference</p>
           </div>
-
-          <form onSubmit={e => { e.preventDefault(); handleLogin(); }} className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4">
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4">
             <div>
               <label className="block text-gray-300 text-sm font-semibold mb-2">Username</label>
-              <input
-                type="text"
-                value={username}
-                onChange={e => { setUsername(e.target.value); setLoginError(''); }}
-                placeholder="Enter your username"
-                autoComplete="username"
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all text-base"
-              />
+              <input type="text" value={username} onChange={e => { setUsername(e.target.value); setLoginError(''); }}
+                placeholder="Enter your username" autoComplete="username" className={inputCls()} />
             </div>
             <div>
               <label className="block text-gray-300 text-sm font-semibold mb-2">Password</label>
               <div className="relative">
-                <input
-                  type={showPwd ? 'text' : 'password'}
-                  value={password}
+                <input type={showPwd ? 'text' : 'password'} value={password}
                   onChange={e => { setPassword(e.target.value); setLoginError(''); }}
-                  placeholder="Enter your password"
-                  autoComplete="current-password"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all pr-12 text-base"
-                />
-                <button type="button" onClick={() => setShowPwd(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors p-1">
+                  placeholder="Enter your password" autoComplete="current-password"
+                  className={inputCls()} style={{ paddingRight: '3rem' }} />
+                <button type="button" onClick={() => setShowPwd(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white p-1">
                   <EyeIcon open={showPwd} />
                 </button>
               </div>
               {loginError && <p className="text-red-400 text-xs mt-1.5">{loginError}</p>}
             </div>
-
-            <button
-              type="submit"
-              disabled={loggingIn}
-              className="w-full py-4 bg-purple-100 hover:bg-purple-700 rounded-xl text-white font-bold transition-colors text-base active:scale-95 disabled:opacity-50"
-            >
+            <button onClick={handleLogin} disabled={loggingIn}
+              className="w-full py-4 bg-purple-600 hover:bg-purple-700 rounded-xl text-white font-bold transition-colors text-base active:scale-95 disabled:opacity-50">
               {loggingIn ? 'Signing in…' : 'Sign In'}
             </button>
-          </form>
-
+          </div>
           <p className="text-center mt-6 text-gray-500 text-sm">
-            Super Admin?{' '}
-            <a href="/admin" className="text-purple-400 hover:text-purple-300 underline">Admin Console →</a>
+            Super Admin? <a href="/admin" className="text-purple-400 hover:text-purple-300 underline">Admin Console →</a>
           </p>
         </div>
       </div>
@@ -258,6 +344,7 @@ const StaffPortal = () => {
   }
 
   const theme = STATE_THEME[session.state] ?? STATE_THEME.FCT;
+  const prefix = session.state === 'OTHER' ? 'MRY/' : `MRY/${session.state}/`;
 
   /* ════ FORCE PASSWORD CHANGE ════ */
   if (session.mustChangePassword) {
@@ -269,48 +356,33 @@ const StaffPortal = () => {
             <h1 className="text-white text-2xl font-black">Set New Password</h1>
             <p className="text-gray-400 text-sm mt-2 leading-relaxed">
               Welcome, <span className="text-white font-semibold">{session.name}</span>!<br />
-              Please set a new password before you can continue.
+              Please set a new password before continuing.
             </p>
           </div>
-
           <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4">
             <div>
               <label className="block text-gray-300 text-sm font-semibold mb-2">New Password</label>
               <div className="relative">
-                <input
-                  type={showNewPwd ? 'text' : 'password'}
-                  value={newPassword}
+                <input type={showNewPwd ? 'text' : 'password'} value={newPassword}
                   onChange={e => { setNewPassword(e.target.value); setPwdError(''); }}
-                  placeholder="At least 8 characters"
-                  className={inputCls(pwdError ? pwdError : undefined)}
-                />
+                  placeholder="At least 8 characters" className={inputCls(!!pwdError)} style={{ paddingRight: '3rem' }} />
                 <button type="button" onClick={() => setShowNewPwd(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white p-1">
                   <EyeIcon open={showNewPwd} />
                 </button>
               </div>
             </div>
-
             <div>
               <label className="block text-gray-300 text-sm font-semibold mb-2">Confirm Password</label>
-              <input
-                type="password"
-                value={confirmPassword}
+              <input type="password" value={confirmPassword}
                 onChange={e => { setConfirmPassword(e.target.value); setPwdError(''); }}
-                placeholder="Repeat your new password"
-                className={inputCls(pwdError ? pwdError : undefined)}
-              />
+                placeholder="Repeat your new password" className={inputCls(!!pwdError)} />
               {pwdError && <p className="text-red-400 text-xs mt-1.5">{pwdError}</p>}
             </div>
-
-            <button
-              onClick={handleChangePassword}
-              disabled={changingPwd}
-              className="w-full py-4 bg-purple-600 hover:bg-purple-700 rounded-xl text-white font-bold transition-colors text-base active:scale-95 disabled:opacity-50"
-            >
-              {changingPwd ? 'Saving…' : 'Save New Password & Continue'}
+            <button onClick={handleChangePassword} disabled={changingPwd}
+              className="w-full py-4 bg-purple-600 hover:bg-purple-700 rounded-xl text-white font-bold transition-colors text-base active:scale-95 disabled:opacity-50">
+              {changingPwd ? 'Saving…' : 'Save & Continue'}
             </button>
           </div>
-
           <button onClick={handleLogout} className="w-full mt-4 text-center text-gray-500 text-sm hover:text-gray-300 transition-colors">
             ← Back to login
           </button>
@@ -322,8 +394,6 @@ const StaffPortal = () => {
   /* ════ STAFF DASHBOARD ════ */
   return (
     <div className={`min-h-screen bg-gradient-to-br ${theme.bg} text-white`}>
-
-      {/* ── Top bar ── */}
       <header className="bg-black/40 border-b border-white/10 px-4 sm:px-6 py-4 flex justify-between items-center gap-3 sticky top-0 z-10 backdrop-blur-md">
         <div className="flex items-center gap-3 min-w-0">
           <img src="/favicon.png" alt="CACYOF" className="h-9 w-9 shrink-0 object-contain" />
@@ -332,148 +402,33 @@ const StaffPortal = () => {
             <p className="text-white font-bold text-sm leading-tight truncate">{session.name}</p>
           </div>
         </div>
-        <div className="flex gap-2 items-center shrink-0">
-          <button
-            onClick={() => session && fetchRegistrations(session.state)}
-            className="px-3 sm:px-4 py-2 text-xs sm:text-sm border border-white/20 hover:border-purple-400 rounded-lg transition-colors"
-          >
-            Refresh
-          </button>
-          <button
-            onClick={handleLogout}
-            className="px-3 sm:px-4 py-2 text-xs sm:text-sm bg-red-900/50 hover:bg-red-900 rounded-lg transition-colors"
-          >
-            Logout
-          </button>
-        </div>
+        <button onClick={handleLogout} className="px-3 sm:px-4 py-2 text-xs sm:text-sm bg-red-900/50 hover:bg-red-900 rounded-lg transition-colors">
+          Logout
+        </button>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+      <main className="max-w-md mx-auto px-4 sm:px-6 py-8 space-y-6">
 
-        {/* ── State banner ── */}
-        <div className={`border ${theme.border} rounded-2xl p-5 sm:p-7 text-center`}>
-          <p className="text-gray-400 text-xs uppercase tracking-widest mb-2 font-semibold">
+        {/* State banner */}
+        <div className={`border ${theme.border} rounded-2xl p-5 text-center`}>
+          <p className="text-gray-400 text-xs uppercase tracking-widest mb-1 font-semibold">
             2026 Youth Conference · Verification Portal
           </p>
-          <h1 className={`text-3xl sm:text-5xl font-black uppercase tracking-wide ${theme.text}`}>
+          <h1 className={`text-3xl font-black uppercase tracking-wide ${theme.text}`}>
             {STATE_LABELS[session.state] ?? session.state}
           </h1>
-          <p className="text-gray-400 text-sm mt-2">
-            You can only verify registrants from this state.
-          </p>
         </div>
 
-        {/* ── Stats ── */}
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            { label: 'Total', value: stats.total, cls: theme.text },
-            { label: 'Verified', value: stats.verified, cls: 'text-emerald-400' },
-            { label: 'Pending', value: stats.pending, cls: 'text-orange-400' },
-          ].map(s => (
-            <div key={s.label} className="bg-white/5 border border-white/10 rounded-xl p-4 text-center">
-              <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">{s.label}</p>
-              <p className={`text-3xl font-black ${s.cls}`}>{s.value}</p>
-            </div>
-          ))}
+        {/* Code lookup */}
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-5 sm:p-6">
+          <h2 className="text-white font-bold text-base mb-5">Verify Attendee</h2>
+          <CodeLookup
+            prefix={prefix}
+            authHeader={{ 'x-staff-id': session.id }}
+            themeText={theme.text}
+          />
         </div>
 
-        {/* ── Search ── */}
-        <input
-          type="search"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Search by name, code or phone…"
-          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all text-sm"
-        />
-
-        <p className="text-gray-400 text-sm">
-          Showing <span className="text-white font-semibold">{filtered.length}</span> registrant{filtered.length !== 1 ? 's' : ''}
-        </p>
-
-        {/* ── Registrations ── */}
-        {loading ? (
-          <div className="text-center py-20 text-gray-400">Loading registrations…</div>
-        ) : filtered.length === 0 ? (
-          <div className="text-center py-20 text-gray-400">
-            {search ? 'No results found.' : 'No registrations for this state yet.'}
-          </div>
-        ) : (
-          <>
-            {/* Desktop table */}
-            <div className="hidden md:block overflow-x-auto rounded-xl border border-white/10">
-              <table className="w-full text-sm">
-                <thead className="bg-white/5">
-                  <tr>
-                    {['#', 'Name', 'Code', 'Phone', 'Date', 'Status', 'Action'].map(h => (
-                      <th key={h} className="px-4 py-3 text-left text-gray-400 font-semibold uppercase text-xs tracking-wider whitespace-nowrap">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((reg, i) => (
-                    <tr key={reg.id} className="border-t border-white/5 hover:bg-white/5 transition-colors">
-                      <td className="px-4 py-3 text-gray-500 text-xs">{i + 1}</td>
-                      <td className="px-4 py-3 font-semibold text-white">{reg.name}</td>
-                      <td className="px-4 py-3 font-mono font-black text-amber-400 tracking-widest text-sm">{reg.uniqueCode}</td>
-                      <td className="px-4 py-3 text-gray-300 text-sm">{reg.phone}</td>
-                      <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">{new Date(reg.registeredAt).toLocaleDateString('en-NG')}</td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-1 rounded-md text-xs font-semibold ${reg.verified ? 'bg-green-900/40 text-green-400' : 'bg-white/5 text-gray-400'}`}>
-                          {reg.verified ? '✓ Verified' : 'Pending'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <button
-                          onClick={() => handleVerify(reg)}
-                          disabled={verifying === reg.id}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 ${reg.verified ? 'bg-red-900/40 hover:bg-red-900/70 text-red-300' : 'bg-green-900/40 hover:bg-green-900/70 text-green-300'}`}
-                        >
-                          {verifying === reg.id ? '…' : reg.verified ? 'Unverify' : 'Verify'}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Mobile cards */}
-            <div className="md:hidden space-y-3">
-              {filtered.map((reg, i) => (
-                <div key={reg.id} className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="font-bold text-white text-sm">{reg.name}</p>
-                    <span className="text-gray-500 text-xs shrink-0">#{i + 1}</span>
-                  </div>
-
-                  {/* Big code */}
-                  <div className="bg-black/30 rounded-lg py-4 px-4 text-center">
-                    <p className="text-gray-400 text-xs uppercase tracking-wider mb-1.5">Admission Code</p>
-                    <p className="font-mono font-black text-amber-400 text-3xl tracking-widest">{reg.uniqueCode}</p>
-                  </div>
-
-                  <div className="flex items-center justify-between text-xs text-gray-400 gap-2 flex-wrap">
-                    <span>{reg.phone}</span>
-                    <span>{new Date(reg.registeredAt).toLocaleDateString('en-NG')}</span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <span className={`px-3 py-2 rounded-lg text-xs font-semibold ${reg.verified ? 'bg-green-900/40 text-green-400' : 'bg-white/5 text-gray-400'}`}>
-                      {reg.verified ? '✓ Verified' : 'Pending'}
-                    </span>
-                    <button
-                      onClick={() => handleVerify(reg)}
-                      disabled={verifying === reg.id}
-                      className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-colors disabled:opacity-50 ${reg.verified ? 'bg-red-900/40 hover:bg-red-900/70 text-red-300' : 'bg-green-900/40 hover:bg-green-900/70 text-green-400'}`}
-                    >
-                      {verifying === reg.id ? '…' : reg.verified ? 'Unverify' : 'Mark as Verified'}
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
       </main>
     </div>
   );

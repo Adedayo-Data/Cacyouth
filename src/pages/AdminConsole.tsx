@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { CodeLookup } from './StaffPortal';
 
 const API = import.meta.env.VITE_API_URL ?? '';
 const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD ?? 'admin123';
@@ -47,7 +48,7 @@ interface StaffMember {
   createdAt: string;
 }
 
-type TabType = 'registrations' | 'staff';
+type TabType = 'registrations' | 'verify' | 'staff';
 type StateFilter = 'ALL' | 'FCT' | 'NIGER' | 'KADUNA';
 
 const STATE_LABELS: Record<string, string> = { FCT: 'FCT', NIGER: 'Niger', KADUNA: 'Kaduna', OTHER: 'Other States' };
@@ -114,6 +115,7 @@ const AdminConsole = () => {
   const [filter, setFilter] = useState<StateFilter>('ALL');
   const [search, setSearch] = useState('');
   const [verifying, setVerifying] = useState<string | null>(null);
+  const [verifyState, setVerifyState] = useState<'FCT' | 'NIGER' | 'KADUNA' | 'OTHER' | ''>('');
 
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [loadingStaff, setLoadingStaff] = useState(false);
@@ -351,7 +353,7 @@ const AdminConsole = () => {
 
         <div className="border-b border-white/10 px-4 sm:px-6">
           <div className="flex gap-0 max-w-7xl mx-auto">
-            {([['registrations', 'Registrations'], ['staff', 'Staff Accounts']] as [TabType, string][]).map(([tab, label]) => (
+            {([['registrations', 'Registrations'], ['verify', 'Verify'], ['staff', 'Staff Accounts']] as [TabType, string][]).map(([tab, label]) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -541,6 +543,49 @@ const AdminConsole = () => {
                 </>
               )}
             </>
+          )}
+
+          {/* ════ VERIFY TAB ════ */}
+          {activeTab === 'verify' && (
+            <div className="max-w-md mx-auto space-y-6">
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-5 sm:p-6">
+                <h2 className="text-white font-bold text-base mb-4">Select State</h2>
+                <div className="grid grid-cols-2 gap-3 mb-6">
+                  {([
+                    { v: 'FCT',    l: 'FCT',    sub: 'Abuja' },
+                    { v: 'NIGER',  l: 'Niger',  sub: 'State' },
+                    { v: 'KADUNA', l: 'Kaduna', sub: 'State' },
+                    { v: 'OTHER',  l: 'Other',  sub: 'States' },
+                  ] as const).map(({ v, l, sub }) => (
+                    <button
+                      key={v} type="button" onClick={() => setVerifyState(v)}
+                      className={`py-4 rounded-xl border transition-all text-center flex flex-col items-center gap-1 ${
+                        verifyState === v
+                          ? 'bg-purple-600 border-purple-500 text-white shadow-lg shadow-purple-900/40'
+                          : 'bg-white/5 border-white/10 text-gray-400 hover:border-purple-400/40'
+                      }`}
+                    >
+                      <span className="font-bold text-sm">{l}</span>
+                      <span className="text-xs opacity-70">{sub}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {verifyState && (
+                  <>
+                    <div className="border-t border-white/10 pt-5">
+                      <h2 className="text-white font-bold text-base mb-5">Verify Attendee</h2>
+                      <CodeLookup
+                        key={verifyState}
+                        prefix={verifyState === 'OTHER' ? 'MRY/' : `MRY/${verifyState}/`}
+                        authHeader={{ 'x-admin-key': ADMIN_PASSWORD }}
+                        themeText="text-purple-400"
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
           )}
 
           {/* ════ STAFF ACCOUNTS TAB ════ */}
