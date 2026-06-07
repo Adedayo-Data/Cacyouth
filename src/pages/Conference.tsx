@@ -3,7 +3,7 @@ import { generateUniqueCode } from '../utils/codeGenerator';
 
 const API = import.meta.env.VITE_API_URL ?? '';
 
-const CONFERENCE_FEE = 3000;
+const CONFERENCE_FEE = 3100;
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
