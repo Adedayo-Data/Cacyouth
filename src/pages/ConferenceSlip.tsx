@@ -1,5 +1,7 @@
-import { useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+
+const API = import.meta.env.VITE_API_URL ?? '';
 
 interface SlipState {
   name: string;
@@ -33,6 +35,11 @@ const Row = ({ label, value }: { label: string; value?: string }) => {
 const ConferenceSlip = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  const [fetchedSlip, setFetchedSlip] = useState<SlipState | null>(null);
+  const [loadingSlip, setLoadingSlip] = useState(false);
+  const [notFound, setNotFound] = useState(false);
 
   // After a Flutterwave payment, a full-page redirect brings us here with no
   // React Router state — fall back to sessionStorage set by the callback.
@@ -43,18 +50,42 @@ const ConferenceSlip = () => {
       return raw ? (JSON.parse(raw) as SlipState) : null;
     } catch { return null; }
   })();
-  const slip = routerSlip ?? sessionSlip;
 
   // Clear sessionStorage once we've read it so it doesn't linger
   useEffect(() => {
     if (sessionSlip) sessionStorage.removeItem('cac_slip');
   }, []);
 
+  // When arriving via email link (?code=...) fetch slip data from server
+  useEffect(() => {
+    const code = searchParams.get('code');
+    if (!code || routerSlip || sessionSlip) return;
+    setLoadingSlip(true);
+    fetch(`${API}/api/registrations/by-code/${encodeURIComponent(code)}`)
+      .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+      .then((data: SlipState) => setFetchedSlip(data))
+      .catch(() => setNotFound(true))
+      .finally(() => setLoadingSlip(false));
+  }, []);
+
+  const slip = routerSlip ?? sessionSlip ?? fetchedSlip;
+
+  if (loadingSlip) {
+    return (
+      <div className="min-h-screen bg-black-light flex flex-col items-center justify-center gap-4 px-4">
+        <div className="w-10 h-10 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
+        <p className="text-gray-400 text-sm">Loading your registration slip…</p>
+      </div>
+    );
+  }
+
   if (!slip) {
     return (
       <div className="min-h-screen bg-black-light flex flex-col items-center justify-center gap-5 px-4">
         <p className="text-white text-lg text-center">
-          No registration data found. Please complete registration first.
+          {notFound
+            ? 'Registration not found. Please check the link in your email.'
+            : 'No registration data found. Please complete registration first.'}
         </p>
         <button
           onClick={() => navigate('/conference')}

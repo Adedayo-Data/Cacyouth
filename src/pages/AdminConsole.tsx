@@ -134,7 +134,10 @@ const AdminConsole = () => {
   const [slipEmailOverrides, setSlipEmailOverrides] = useState<Record<string, string>>({});
   const [slipSentMap, setSlipSentMap] = useState<Record<string, boolean>>({});
   const [bulkSending, setBulkSending] = useState(false);
-  const [bulkResult, setBulkResult] = useState<{ started: boolean; total: number } | null>(null);
+  const [bulkProgress, setBulkProgress] = useState<{ sent: number; failed: number; total: number; pct: number; done: boolean } | null>(null);
+
+  // Custom confirm modal
+  const [confirmModal, setConfirmModal] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
   const adminHeaders = { 'x-admin-key': ADMIN_PASSWORD };
 
@@ -256,25 +259,54 @@ const AdminConsole = () => {
     }
   };
 
-  /* ── Send slip (bulk) ── */
-  const handleBulkSendSlips = async () => {
-    if (!confirm(`Send registration slips to all ${registrations.length} registrants? This cannot be undone.`)) return;
+  /* ── Send slip (bulk) — SSE stream ── */
+  const doBulkSend = async () => {
     setBulkSending(true);
-    setBulkResult(null);
+    setBulkProgress(null);
     try {
       const res = await fetch(`${API}/api/registrations/bulk/send-slips`, {
         method: 'POST',
         headers: adminHeaders,
       });
-      const data = await res.json();
-      if (res.status !== 202) throw new Error(data.error || 'Bulk send failed');
-      setBulkResult({ started: true, total: data.total });
+      if (!res.ok || !res.body) throw new Error('Failed to start bulk send');
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const chunks = buffer.split('\n\n');
+        buffer = chunks.pop() ?? '';
+        for (const chunk of chunks) {
+          if (!chunk.startsWith('data: ')) continue;
+          try {
+            const evt = JSON.parse(chunk.slice(6));
+            if (evt.type === 'start') {
+              setBulkProgress({ sent: 0, failed: 0, total: evt.total, pct: 0, done: false });
+            } else if (evt.type === 'progress') {
+              setBulkProgress({ ...evt, done: false });
+            } else if (evt.type === 'done') {
+              setBulkProgress({ ...evt, pct: 100, done: true });
+            }
+          } catch { /* malformed chunk, skip */ }
+        }
+      }
     } catch (err) {
       console.error(err);
       alert(err instanceof Error ? err.message : 'Bulk send failed');
     } finally {
       setBulkSending(false);
     }
+  };
+
+  const handleBulkSendSlips = () => {
+    setConfirmModal({
+      message: `Send registration slips to all ${registrations.length} registrant${registrations.length !== 1 ? 's' : ''}? Each person will receive their slip at their registered email address.`,
+      onConfirm: () => { setConfirmModal(null); doBulkSend(); },
+    });
   };
 
   /* ── Print ── */
@@ -315,6 +347,29 @@ const AdminConsole = () => {
     KADUNA: registrations.filter(r => r.state === 'KADUNA').length,
     verified: registrations.filter(r => r.verified).length,
   };
+
+  /* ════ CONFIRM MODAL ════ */
+  const ConfirmModal = confirmModal ? (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
+      <div className="bg-gray-900 border border-white/15 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+        <p className="text-white text-sm font-semibold leading-relaxed mb-6">{confirmModal.message}</p>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setConfirmModal(null)}
+            className="flex-1 py-3 rounded-xl border border-white/20 text-gray-300 hover:border-white/40 font-semibold text-sm transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={confirmModal.onConfirm}
+            className="flex-1 py-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-sm transition-colors active:scale-95"
+          >
+            Yes, Send
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null;
 
   /* ════ LOGIN SCREEN ════ */
   if (!authenticated) {
@@ -359,6 +414,7 @@ const AdminConsole = () => {
   /* ════ DASHBOARD ════ */
   return (
     <>
+      {ConfirmModal}
       <style>{`
         @media screen { .print-only { display: none !important; } }
         @media print {
@@ -799,22 +855,34 @@ const AdminConsole = () => {
                 <p className="text-gray-400 text-sm mb-4">
                   Fire off a registration slip email to every registrant who has an email address on file.
                 </p>
-                {bulkResult && (
-                  <div className="rounded-xl p-4 border mb-4 bg-green-900/20 border-green-500/30">
-                    <p className="text-sm font-semibold text-green-400">
-                      ✓ Bulk send started — {bulkResult.total} slip{bulkResult.total !== 1 ? 's' : ''} queued.
-                    </p>
-                    <p className="text-green-300/70 text-xs mt-1">
-                      Emails are being sent in the background in batches. Check server logs for progress.
-                    </p>
+                {/* Progress bar */}
+                {bulkProgress && (
+                  <div className="mb-4 space-y-2">
+                    <div className="flex justify-between items-center text-xs font-semibold">
+                      <span className={bulkProgress.done ? 'text-green-400' : 'text-purple-300'}>
+                        {bulkProgress.done
+                          ? `✓ Done — ${bulkProgress.sent} sent${bulkProgress.failed > 0 ? `, ${bulkProgress.failed} failed` : ''}`
+                          : `Sending… ${bulkProgress.sent + bulkProgress.failed} / ${bulkProgress.total}`}
+                      </span>
+                      <span className={bulkProgress.done ? 'text-green-400' : 'text-purple-300'}>
+                        {bulkProgress.pct}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-white/10 rounded-full h-2.5 overflow-hidden">
+                      <div
+                        className={`h-2.5 rounded-full transition-all duration-500 ${bulkProgress.done ? 'bg-green-500' : 'bg-purple-500'}`}
+                        style={{ width: `${bulkProgress.pct}%` }}
+                      />
+                    </div>
                   </div>
                 )}
+
                 <button
                   onClick={handleBulkSendSlips}
                   disabled={bulkSending || registrations.length === 0}
                   className="px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-xl text-white font-bold text-sm transition-colors disabled:opacity-50 active:scale-95"
                 >
-                  {bulkSending ? 'Sending…' : `Send Slip to All ${registrations.length} Registrants`}
+                  {bulkSending ? 'Sending in progress…' : `Send Slip to All ${registrations.length} Registrants`}
                 </button>
               </div>
 

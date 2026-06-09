@@ -51,17 +51,6 @@ function buildSlipEmail(reg, overrideEmail) {
     ? `${reg.dccZone} State`
     : (STATE_LABELS[reg.state] ?? reg.state);
 
-  const zoneRow = reg.dccZone
-    ? `<tr><td style="color:#6b7280;font-size:14px;padding-bottom:10px;padding-right:16px;">Zone / DCC</td><td style="color:#111827;font-size:14px;font-weight:700;padding-bottom:10px;">${reg.dccZone}</td></tr>`
-    : '';
-
-  const assemblyRow = reg.assemblyName
-    ? `<tr><td style="color:#6b7280;font-size:14px;padding-bottom:10px;padding-right:16px;">Assembly / District</td><td style="color:#111827;font-size:14px;font-weight:700;padding-bottom:10px;">${reg.assemblyName}</td></tr>`
-    : '';
-
-  const denominationRow = reg.denomination
-    ? `<tr><td style="color:#6b7280;font-size:14px;padding-bottom:10px;padding-right:16px;">Church / Denomination</td><td style="color:#111827;font-size:14px;font-weight:700;padding-bottom:10px;">${reg.denomination}</td></tr>`
-    : '';
 
   const html = `
 <!DOCTYPE html>
@@ -127,9 +116,6 @@ function buildSlipEmail(reg, overrideEmail) {
                       <td style="color:#6b7280;font-size:14px;padding-bottom:10px;padding-right:16px;">State</td>
                       <td style="color:#111827;font-size:14px;font-weight:700;padding-bottom:10px;">${stateLabel}</td>
                     </tr>
-                    ${zoneRow}
-                    ${assemblyRow}
-                    ${denominationRow}
                     <tr>
                       <td style="color:#6b7280;font-size:14px;padding-right:16px;">Phone</td>
                       <td style="color:#111827;font-size:14px;font-weight:700;">${reg.phone ?? '—'}</td>
@@ -160,7 +146,7 @@ function buildSlipEmail(reg, overrideEmail) {
             <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
               <tr>
                 <td align="center">
-                  <a href="${APP_URL}/conference/slip"
+                  <a href="${APP_URL}/conference/slip?code=${encodeURIComponent(reg.uniqueCode)}"
                     style="display:inline-block;background:#7c3aed;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:14px 32px;border-radius:8px;">
                     View &amp; Print Your Slip →
                   </a>
@@ -269,20 +255,25 @@ router.post('/lookup', async (req, res) => {
   }
 });
 
-// POST /api/registrations/bulk/send-slips — send slip emails to all registrants (admin only)
-// Returns 202 immediately and processes batches in the background to avoid HTTP timeouts.
+// POST /api/registrations/bulk/send-slips — SSE stream, pushes progress as batches complete
 router.post('/bulk/send-slips', requireAdmin, async (_req, res) => {
+  // SSE headers — keep the connection alive, stream events as batches complete
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  const push = (data) => res.write(`data: ${JSON.stringify(data)}\n\n`);
+
   try {
     const result = await pool.query('SELECT * FROM registrations ORDER BY registered_at ASC');
     const rows = result.rows.map(toReg).filter(r => r.email);
+    const total = rows.length;
 
-    // Respond immediately so the browser doesn't time out
-    res.status(202).json({ started: true, total: rows.length });
+    push({ type: 'start', total });
 
-    // Process in background — batches of 50, 300ms gap between batches to respect Resend rate limits
     const BATCH_SIZE = 50;
     const BATCH_DELAY = 300;
-
     let sent = 0;
     let failed = 0;
 
@@ -290,15 +281,19 @@ router.post('/bulk/send-slips', requireAdmin, async (_req, res) => {
       const batch = rows.slice(i, i + BATCH_SIZE);
       const results = await Promise.allSettled(batch.map(reg => sendSlipEmail(reg)));
       results.forEach(r => r.status === 'fulfilled' ? sent++ : failed++);
-      console.log(`Bulk slip send: batch ${Math.floor(i / BATCH_SIZE) + 1} done — ${sent} sent, ${failed} failed so far`);
+      push({ type: 'progress', sent, failed, total, pct: Math.round(((sent + failed) / total) * 100) });
+
       if (i + BATCH_SIZE < rows.length) {
         await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
       }
     }
 
-    console.log(`Bulk slip send complete: ${sent} sent, ${failed} failed out of ${rows.length}`);
+    push({ type: 'done', sent, failed, total });
   } catch (err) {
     console.error('Bulk send error:', err);
+    push({ type: 'error', message: err.message });
+  } finally {
+    res.end();
   }
 });
 
@@ -332,6 +327,32 @@ router.get('/state/:state', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch registrations' });
+  }
+});
+
+// GET /api/registrations/by-code/:code — public, returns slip-safe fields only (no payment data)
+router.get('/by-code/:code', async (req, res) => {
+  const { code } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT name, unique_code, state, dcc_zone, assembly_name, denomination, phone
+       FROM registrations WHERE UPPER(unique_code) = UPPER($1)`,
+      [code.trim()]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Registration not found' });
+    const row = result.rows[0];
+    res.json({
+      name: row.name,
+      uniqueCode: row.unique_code,
+      state: row.state,
+      dccZone: row.dcc_zone,
+      assemblyName: row.assembly_name,
+      denomination: row.denomination,
+      phone: row.phone,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Lookup failed' });
   }
 });
 
