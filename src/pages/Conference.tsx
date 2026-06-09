@@ -19,7 +19,7 @@ const ZONES_BY_STATE: Record<Exclude<SelectedState, 'OTHER'>, string[]> = {
     'KWALI ZONE', 'MERCY ZONE', 'MARABA ZONE', 'MAPAPE ZONE', 'OKEIYIN ZONE',
     'CHRIST THE KING DCC', 'KARU DCC', 'MIRACLE DCC', 'DUTSE DCC', 'GLORY ZONE',
     'ALL SAINT DCC', 'PRAISE DCC DCC', 'DAGIRI ZONE', 'TRUTH AND POWER ZONE',
-    'ADO ZONE', 'FULFILMENT ZONE', 'NEW LIFE ZONE', 'PASALI ZONE',
+    'ADO ZONE', 'FULFILMENT ZONE', 'LIFE ZONE', 'PASALI ZONE',
     'POSSIBILITY ZONE', 'SALVATION ZONE', 'ZUBA ZONE',
   ],
   NIGER: [
@@ -47,6 +47,7 @@ interface FormData {
   lastName: string;
   dob: string;
   dccZone: string;
+  assemblyName: string;
   denomination: string;
   gender: string;
   phone: string;
@@ -60,7 +61,7 @@ interface FormData {
 type FormField = keyof FormData;
 
 const empty: FormData = {
-  firstName: '', middleName: '', lastName: '', dob: '', dccZone: '', denomination: '', gender: '',
+  firstName: '', middleName: '', lastName: '', dob: '', dccZone: '', assemblyName: '', denomination: '', gender: '',
   phone: '', email: '', state: '', status: '', occupation: '', qualification: '',
 };
 
@@ -87,14 +88,19 @@ const Conference = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
-    setErrors(prev => ({ ...prev, [name]: undefined }));
+    if (name === 'dccZone') {
+      setForm(prev => ({ ...prev, dccZone: value, assemblyName: '' }));
+      setErrors(prev => ({ ...prev, dccZone: undefined, assemblyName: undefined }));
+    } else {
+      setForm(prev => ({ ...prev, [name]: value }));
+      setErrors(prev => ({ ...prev, [name]: undefined }));
+    }
   };
 
   const pick = (field: FormField, value: string) => {
     if (field === 'state') {
-      setForm(prev => ({ ...prev, state: value as SelectedState, dccZone: '', denomination: '' }));
-      setErrors(prev => ({ ...prev, state: undefined, dccZone: undefined, denomination: undefined }));
+      setForm(prev => ({ ...prev, state: value as SelectedState, dccZone: '', assemblyName: '', denomination: '' }));
+      setErrors(prev => ({ ...prev, state: undefined, dccZone: undefined, assemblyName: undefined, denomination: undefined }));
     } else {
       setForm(prev => ({ ...prev, [field]: value }));
       setErrors(prev => ({ ...prev, [field]: undefined }));
@@ -175,6 +181,7 @@ const Conference = () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               ...form, name: fullName, uniqueCode,
+              assemblyName: form.assemblyName || null,
               paymentRef: String(response.transaction_id),
               txRef: response.tx_ref, amount: CONFERENCE_FEE,
               paymentStatus: 'success',
@@ -352,6 +359,24 @@ const Conference = () => {
           )}
           {errors.dccZone && <p className="text-red-400 text-xs mt-1.5">{errors.dccZone}</p>}
         </div>
+
+        {/* Assembly / District Name — for FCT, Niger, Kaduna after zone is chosen */}
+        {form.state !== 'OTHER' && form.dccZone && (
+          <div>
+            <label className="block text-gray-300 text-sm font-semibold mb-2">
+              Assembly / District Name
+            </label>
+            <input
+              type="text"
+              name="assemblyName"
+              value={form.assemblyName}
+              onChange={handleChange}
+              placeholder="e.g. CAC Bethel Assembly, Victory District"
+              className={inputCls('assemblyName')}
+            />
+            {errors.assemblyName && <p className="text-red-400 text-xs mt-1.5">{errors.assemblyName}</p>}
+          </div>
+        )}
 
         {/* Denomination — only for Other state */}
         {form.state === 'OTHER' && (

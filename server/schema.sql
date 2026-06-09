@@ -49,4 +49,7 @@ DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='registrations' AND column_name='denomination') THEN
     ALTER TABLE registrations ADD COLUMN denomination VARCHAR(200);
   END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='registrations' AND column_name='assembly_name') THEN
+    ALTER TABLE registrations ADD COLUMN assembly_name VARCHAR(200);
+  END IF;
 END $$;

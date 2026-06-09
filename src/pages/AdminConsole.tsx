@@ -48,7 +48,7 @@ interface StaffMember {
   createdAt: string;
 }
 
-type TabType = 'registrations' | 'verify' | 'staff';
+type TabType = 'registrations' | 'verify' | 'staff' | 'send-slip';
 type StateFilter = 'ALL' | 'FCT' | 'NIGER' | 'KADUNA';
 
 const STATE_LABELS: Record<string, string> = { FCT: 'FCT', NIGER: 'Niger', KADUNA: 'Kaduna', OTHER: 'Other States' };
@@ -127,6 +127,14 @@ const AdminConsole = () => {
 
   const [printTarget, setPrintTarget] = useState<StateFilter | null>(null);
   const printReady = useRef(false);
+
+  // Send-slip tab state
+  const [slipSearch, setSlipSearch] = useState('');
+  const [sendingSlip, setSendingSlip] = useState<string | null>(null);
+  const [slipEmailOverrides, setSlipEmailOverrides] = useState<Record<string, string>>({});
+  const [slipSentMap, setSlipSentMap] = useState<Record<string, boolean>>({});
+  const [bulkSending, setBulkSending] = useState(false);
+  const [bulkResult, setBulkResult] = useState<{ started: boolean; total: number } | null>(null);
 
   const adminHeaders = { 'x-admin-key': ADMIN_PASSWORD };
 
@@ -226,6 +234,47 @@ const AdminConsole = () => {
       setStaff(prev => prev.filter(s => s.id !== id));
     } catch (err) { console.error(err); }
     finally { setDeletingStaff(null); }
+  };
+
+  /* ── Send slip (individual) ── */
+  const handleSendSlip = async (reg: Registration) => {
+    setSendingSlip(reg.id);
+    const email = slipEmailOverrides[reg.id] ?? reg.email;
+    try {
+      const res = await fetch(`${API}/api/registrations/${reg.id}/send-slip`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...adminHeaders },
+        body: JSON.stringify({ email }),
+      });
+      if (!res.ok) throw new Error('Send failed');
+      setSlipSentMap(prev => ({ ...prev, [reg.id]: true }));
+    } catch (err) {
+      console.error(err);
+      alert('Failed to send slip. Check server logs.');
+    } finally {
+      setSendingSlip(null);
+    }
+  };
+
+  /* ── Send slip (bulk) ── */
+  const handleBulkSendSlips = async () => {
+    if (!confirm(`Send registration slips to all ${registrations.length} registrants? This cannot be undone.`)) return;
+    setBulkSending(true);
+    setBulkResult(null);
+    try {
+      const res = await fetch(`${API}/api/registrations/bulk/send-slips`, {
+        method: 'POST',
+        headers: adminHeaders,
+      });
+      const data = await res.json();
+      if (res.status !== 202) throw new Error(data.error || 'Bulk send failed');
+      setBulkResult({ started: true, total: data.total });
+    } catch (err) {
+      console.error(err);
+      alert(err instanceof Error ? err.message : 'Bulk send failed');
+    } finally {
+      setBulkSending(false);
+    }
   };
 
   /* ── Print ── */
@@ -353,7 +402,7 @@ const AdminConsole = () => {
 
         <div className="border-b border-white/10 px-4 sm:px-6">
           <div className="flex gap-0 max-w-7xl mx-auto">
-            {([['registrations', 'Registrations'], ['verify', 'Verify'], ['staff', 'Staff Accounts']] as [TabType, string][]).map(([tab, label]) => (
+            {([['registrations', 'Registrations'], ['verify', 'Verify'], ['staff', 'Staff Accounts'], ['send-slip', 'Send Slip']] as [TabType, string][]).map(([tab, label]) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -740,6 +789,117 @@ const AdminConsole = () => {
               </div>
             </div>
           )}
+          {/* ════ SEND SLIP TAB ════ */}
+          {activeTab === 'send-slip' && (
+            <div className="space-y-6">
+
+              {/* Bulk send */}
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-5 sm:p-6">
+                <h2 className="text-white font-bold text-base mb-1">Send to All Registrants</h2>
+                <p className="text-gray-400 text-sm mb-4">
+                  Fire off a registration slip email to every registrant who has an email address on file.
+                </p>
+                {bulkResult && (
+                  <div className="rounded-xl p-4 border mb-4 bg-green-900/20 border-green-500/30">
+                    <p className="text-sm font-semibold text-green-400">
+                      ✓ Bulk send started — {bulkResult.total} slip{bulkResult.total !== 1 ? 's' : ''} queued.
+                    </p>
+                    <p className="text-green-300/70 text-xs mt-1">
+                      Emails are being sent in the background in batches. Check server logs for progress.
+                    </p>
+                  </div>
+                )}
+                <button
+                  onClick={handleBulkSendSlips}
+                  disabled={bulkSending || registrations.length === 0}
+                  className="px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-xl text-white font-bold text-sm transition-colors disabled:opacity-50 active:scale-95"
+                >
+                  {bulkSending ? 'Sending…' : `Send Slip to All ${registrations.length} Registrants`}
+                </button>
+              </div>
+
+              {/* Individual search + send */}
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-5 sm:p-6">
+                <h2 className="text-white font-bold text-base mb-1">Send to a Specific Registrant</h2>
+                <p className="text-gray-400 text-sm mb-4">
+                  Search by name. You can edit the email before sending in case the registered address is wrong.
+                </p>
+                <input
+                  type="search"
+                  value={slipSearch}
+                  onChange={e => setSlipSearch(e.target.value)}
+                  placeholder="Search by first name, last name, or full name…"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all text-sm mb-4"
+                />
+
+                {slipSearch.trim().length < 2 ? (
+                  <p className="text-gray-500 text-sm text-center py-6">Type at least 2 characters to search.</p>
+                ) : (() => {
+                  const q = slipSearch.trim().toLowerCase();
+                  const matches = registrations.filter(r =>
+                    r.name.toLowerCase().includes(q)
+                  );
+                  if (matches.length === 0) {
+                    return <p className="text-gray-500 text-sm text-center py-6">No registrants found matching "{slipSearch}".</p>;
+                  }
+                  return (
+                    <div className="space-y-3">
+                      <p className="text-gray-400 text-xs mb-2">{matches.length} result{matches.length !== 1 ? 's' : ''}</p>
+                      {matches.map(reg => {
+                        const emailVal = slipEmailOverrides[reg.id] ?? reg.email;
+                        const sent = slipSentMap[reg.id];
+                        return (
+                          <div key={reg.id} className="bg-white/5 border border-white/10 rounded-xl p-4">
+                            <div className="flex items-start justify-between gap-3 mb-3">
+                              <div>
+                                <p className="font-bold text-white text-sm">{reg.name}</p>
+                                <p className="text-gray-400 text-xs mt-0.5 font-mono">{reg.uniqueCode}</p>
+                              </div>
+                              <span className="px-2 py-1 rounded-md bg-purple-950/60 text-purple-300 text-xs font-bold shrink-0">
+                                {STATE_LABELS[reg.state] ?? reg.state}
+                              </span>
+                            </div>
+
+                            {/* Editable email */}
+                            <div className="mb-3">
+                              <label className="block text-gray-400 text-xs font-semibold mb-1.5 uppercase tracking-wider">
+                                Send to Email
+                              </label>
+                              <input
+                                type="email"
+                                value={emailVal}
+                                onChange={e => setSlipEmailOverrides(prev => ({ ...prev, [reg.id]: e.target.value }))}
+                                className="w-full bg-gray-950 border border-white/10 rounded-lg px-3 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all text-sm"
+                                placeholder="email@example.com"
+                              />
+                              {slipEmailOverrides[reg.id] && slipEmailOverrides[reg.id] !== reg.email && (
+                                <p className="text-amber-400 text-xs mt-1">⚠ Using overridden email (registered: {reg.email})</p>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                              <button
+                                onClick={() => handleSendSlip(reg)}
+                                disabled={sendingSlip === reg.id || !emailVal.trim()}
+                                className="flex-1 py-2.5 rounded-lg text-sm font-bold text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 transition-colors active:scale-95"
+                              >
+                                {sendingSlip === reg.id ? 'Sending…' : 'Send Slip'}
+                              </button>
+                              {sent && (
+                                <span className="text-green-400 text-xs font-semibold shrink-0">✓ Sent</span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
+
+            </div>
+          )}
+
         </main>
       </div>
     </>
