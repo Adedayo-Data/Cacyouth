@@ -46,7 +46,7 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
-function buildSlipEmail(reg, overrideEmail) {
+function buildSlipEmail(reg, overrideEmail, customMessage) {
   const stateLabel = reg.state === 'OTHER' && reg.dccZone
     ? `${reg.dccZone} State`
     : (STATE_LABELS[reg.state] ?? reg.state);
@@ -99,6 +99,19 @@ function buildSlipEmail(reg, overrideEmail) {
               has been confirmed. Keep this slip safe — you will need your
               <strong>Registration ID</strong> to enter the venue.
             </p>
+
+            ${customMessage ? `
+            <!-- Custom admin message -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;margin-bottom:24px;">
+              <tr>
+                <td style="padding:18px 22px;">
+                  <p style="margin:0 0 6px;color:#92400e;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;">
+                    Message from the Organisers
+                  </p>
+                  <p style="margin:0;color:#78350f;font-size:14px;line-height:1.7;white-space:pre-wrap;">${customMessage.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>
+                </td>
+              </tr>
+            </table>` : ''}
 
             <!-- Details box -->
             <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:24px;">
@@ -184,8 +197,8 @@ function buildSlipEmail(reg, overrideEmail) {
   };
 }
 
-async function sendSlipEmail(reg, overrideEmail) {
-  return resend.emails.send(buildSlipEmail(reg, overrideEmail));
+async function sendSlipEmail(reg, overrideEmail, customMessage) {
+  return resend.emails.send(buildSlipEmail(reg, overrideEmail, customMessage));
 }
 
 // POST /api/registrations — create (no auth, called after payment)
@@ -256,7 +269,8 @@ router.post('/lookup', async (req, res) => {
 });
 
 // POST /api/registrations/bulk/send-slips — SSE stream, pushes progress as batches complete
-router.post('/bulk/send-slips', requireAdmin, async (_req, res) => {
+router.post('/bulk/send-slips', requireAdmin, async (req, res) => {
+  const { message: customMessage } = req.body || {};
   // SSE headers — keep the connection alive, stream events as batches complete
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -279,7 +293,7 @@ router.post('/bulk/send-slips', requireAdmin, async (_req, res) => {
 
     for (let i = 0; i < rows.length; i += BATCH_SIZE) {
       const batch = rows.slice(i, i + BATCH_SIZE);
-      const results = await Promise.allSettled(batch.map(reg => sendSlipEmail(reg)));
+      const results = await Promise.allSettled(batch.map(reg => sendSlipEmail(reg, null, customMessage)));
       results.forEach(r => r.status === 'fulfilled' ? sent++ : failed++);
       push({ type: 'progress', sent, failed, total, pct: Math.round(((sent + failed) / total) * 100) });
 
@@ -394,7 +408,7 @@ router.patch('/:id/verify', async (req, res) => {
 // POST /api/registrations/:id/send-slip — send slip to a specific registrant (admin only)
 router.post('/:id/send-slip', requireAdmin, async (req, res) => {
   const { id } = req.params;
-  const { email: overrideEmail } = req.body; // optional override
+  const { email: overrideEmail, message: customMessage } = req.body || {};
 
   try {
     const result = await pool.query('SELECT * FROM registrations WHERE id = $1', [id]);
@@ -405,7 +419,7 @@ router.post('/:id/send-slip', requireAdmin, async (req, res) => {
 
     if (!targetEmail) return res.status(400).json({ error: 'No email address available' });
 
-    await sendSlipEmail(reg, targetEmail);
+    await sendSlipEmail(reg, targetEmail, customMessage);
     res.json({ success: true, sentTo: targetEmail });
   } catch (err) {
     console.error('Send slip error:', err);

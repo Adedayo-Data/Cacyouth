@@ -135,6 +135,7 @@ const AdminConsole = () => {
   const [slipSentMap, setSlipSentMap] = useState<Record<string, boolean>>({});
   const [bulkSending, setBulkSending] = useState(false);
   const [bulkProgress, setBulkProgress] = useState<{ sent: number; failed: number; total: number; pct: number; done: boolean } | null>(null);
+  const [slipMessage, setSlipMessage] = useState('');
 
   // Custom confirm modal
   const [confirmModal, setConfirmModal] = useState<{ message: string; onConfirm: () => void } | null>(null);
@@ -247,7 +248,7 @@ const AdminConsole = () => {
       const res = await fetch(`${API}/api/registrations/${reg.id}/send-slip`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...adminHeaders },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, message: slipMessage.trim() || undefined }),
       });
       if (!res.ok) throw new Error('Send failed');
       setSlipSentMap(prev => ({ ...prev, [reg.id]: true }));
@@ -266,7 +267,8 @@ const AdminConsole = () => {
     try {
       const res = await fetch(`${API}/api/registrations/bulk/send-slips`, {
         method: 'POST',
-        headers: adminHeaders,
+        headers: { 'Content-Type': 'application/json', ...adminHeaders },
+        body: JSON.stringify({ message: slipMessage.trim() || undefined }),
       });
       if (!res.ok || !res.body) throw new Error('Failed to start bulk send');
 
@@ -848,6 +850,24 @@ const AdminConsole = () => {
           {/* ════ SEND SLIP TAB ════ */}
           {activeTab === 'send-slip' && (
             <div className="space-y-6">
+
+              {/* Optional custom message — shared by both bulk and individual sends */}
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-5 sm:p-6">
+                <h2 className="text-white font-bold text-base mb-1">Custom Message <span className="text-gray-500 font-normal text-sm">(optional)</span></h2>
+                <p className="text-gray-400 text-sm mb-4">
+                  Add a personal note from the organisers. It will appear as a highlighted box in every slip email you send from this page.
+                </p>
+                <textarea
+                  value={slipMessage}
+                  onChange={e => setSlipMessage(e.target.value)}
+                  rows={4}
+                  placeholder="e.g. Dear participant, we sincerely apologise for the delay in sending your slip. This is your valid registration slip — please keep it safe and present it at the venue. God bless you!"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all text-sm resize-none leading-relaxed"
+                />
+                {slipMessage.trim() && (
+                  <p className="text-purple-400 text-xs mt-2">✓ Message will be included in all slips sent from this page.</p>
+                )}
+              </div>
 
               {/* Bulk send */}
               <div className="bg-white/5 border border-white/10 rounded-2xl p-5 sm:p-6">
