@@ -41,6 +41,9 @@ const ConferenceSlip = () => {
   const [loadingSlip, setLoadingSlip] = useState(false);
   const [notFound, setNotFound] = useState(false);
 
+  const [resendInput, setResendInput] = useState('');
+  const [resendState, setResendState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+
   // After a Flutterwave payment, a full-page redirect brings us here with no
   // React Router state — fall back to sessionStorage set by the callback.
   const routerSlip = location.state as SlipState | null;
@@ -79,19 +82,68 @@ const ConferenceSlip = () => {
     );
   }
 
+  const handleResend = async (e: React.SyntheticEvent) => {
+    e.preventDefault();
+    const val = resendInput.trim();
+    if (!val) return;
+    setResendState('sending');
+    try {
+      const isEmail = val.includes('@');
+      await fetch(`${API}/api/registrations/resend`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(isEmail ? { email: val } : { phone: val }),
+      });
+      setResendState('sent');
+    } catch {
+      setResendState('error');
+    }
+  };
+
   if (!slip) {
     return (
-      <div className="min-h-screen bg-black-light flex flex-col items-center justify-center gap-5 px-4">
+      <div className="min-h-screen bg-black-light flex flex-col items-center justify-center gap-6 px-4">
         <p className="text-white text-lg text-center">
           {notFound
             ? 'Registration not found. Please check the link in your email.'
-            : 'No registration data found. Please complete registration first.'}
+            : 'No registration data found.'}
         </p>
+
+        {resendState === 'sent' ? (
+          <p className="text-green-400 text-sm text-center max-w-xs">
+            If we have your details on file, the slip has been resent to your email.
+          </p>
+        ) : (
+          <form onSubmit={handleResend} className="w-full max-w-xs flex flex-col gap-3">
+            <p className="text-gray-400 text-sm text-center">
+              Paid but lost your slip? Enter the email or phone number used during registration.
+              If you registered multiple people, all their slips will arrive in one email.
+            </p>
+            <input
+              type="text"
+              value={resendInput}
+              onChange={e => setResendInput(e.target.value)}
+              placeholder="Email or phone number"
+              className="w-full rounded-xl px-4 py-3 text-white bg-white/5 border border-white/10 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+            />
+            {resendState === 'error' && (
+              <p className="text-red-400 text-xs text-center">Something went wrong. Please try again.</p>
+            )}
+            <button
+              type="submit"
+              disabled={resendState === 'sending'}
+              className="py-3 rounded-xl font-bold text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-60 transition-colors"
+            >
+              {resendState === 'sending' ? 'Sending…' : 'Resend My Slip'}
+            </button>
+          </form>
+        )}
+
         <button
           onClick={() => navigate('/conference')}
-          className="px-8 py-3 bg-purple-600 hover:bg-purple-700 rounded-xl text-white font-bold transition-colors"
+          className="text-gray-500 text-sm hover:text-gray-300 transition-colors"
         >
-          Go to Registration
+          Go to Registration →
         </button>
       </div>
     );

@@ -76,6 +76,7 @@ const Conference = () => {
   const [form, setForm]       = useState<FormData>(empty);
   const [errors, setErrors]   = useState<Partial<Record<FormField, string>>>({});
   const [scriptReady, setScriptReady] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (window.FlutterwaveCheckout) { setScriptReady(true); return; }
@@ -144,14 +145,34 @@ const Conference = () => {
     ? form.dccZone.toUpperCase()
     : (form.state as string);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validateStep(3)) return;
     if (!scriptReady) { alert('Payment is still loading. Please try again in a moment.'); return; }
 
     const uniqueCode = generateUniqueCode(stateForCode);
     const txRef = `CACYOUTH-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 
-    // Store slip data so onclose can navigate after the popup fully closes
+    // Pre-save the registration as 'pending' so the row exists before payment begins.
+    // If this fails we still proceed — the callback will retry with status 'success'.
+    setSubmitting(true);
+    let preSaved = false;
+    try {
+      const res = await fetch(`${API}/api/registrations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...form, name: fullName, uniqueCode,
+          assemblyName: form.assemblyName || null,
+          txRef, amount: CONFERENCE_FEE, paymentStatus: 'pending',
+        }),
+      });
+      preSaved = res.ok;
+      if (!res.ok) console.warn('Pre-save failed:', res.status);
+    } catch (err) {
+      console.warn('Pre-save network error:', err);
+    }
+    setSubmitting(false);
+
     window.FlutterwaveCheckout?.({
       public_key: import.meta.env.VITE_FLW_PUBLIC_KEY,
       tx_ref: txRef,
@@ -167,36 +188,30 @@ const Conference = () => {
       callback: (response: { status: string; transaction_id: number; tx_ref: string }) => {
         console.log('FLW callback response:', JSON.stringify(response));
         if (response.status === 'successful' || response.status === 'completed') {
-          const slip = {
+          sessionStorage.setItem('cac_slip', JSON.stringify({
             name: fullName, state: form.state,
             dccZone: form.dccZone, phone: form.phone, uniqueCode,
-          };
+          }));
 
-          // Persist slip data so the slip page can read it after the redirect
-          sessionStorage.setItem('cac_slip', JSON.stringify(slip));
+          if (!preSaved) {
+            // Pre-save failed earlier — save now with success so the record makes it to DB
+            fetch(`${API}/api/registrations`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                ...form, name: fullName, uniqueCode,
+                assemblyName: form.assemblyName || null,
+                paymentRef: String(response.transaction_id),
+                txRef: response.tx_ref, amount: CONFERENCE_FEE, paymentStatus: 'success',
+              }),
+            }).catch(err => console.error('Registration save error:', err));
+          }
+          // If pre-save succeeded the webhook will update status → 'success' and send the email.
 
-          // Save registration to DB in the background
-          fetch(`${API}/api/registrations`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              ...form, name: fullName, uniqueCode,
-              assemblyName: form.assemblyName || null,
-              paymentRef: String(response.transaction_id),
-              txRef: response.tx_ref, amount: CONFERENCE_FEE,
-              paymentStatus: 'success',
-            }),
-          })
-            .then(r => { if (!r.ok) console.error('Registration save failed:', r.status); })
-            .catch(err => console.error('Registration save error:', err));
-
-          // After 2 s the full-page redirect kills the Flutterwave popup automatically
-          // — no manual X click needed
           setTimeout(() => { window.location.href = '/conference/slip'; }, 2000);
         }
       },
       onclose: () => {
-        // If payment succeeded (sessionStorage set) redirect immediately when popup closes
         if (sessionStorage.getItem('cac_slip')) {
           window.location.href = '/conference/slip';
         }
@@ -480,6 +495,19 @@ const Conference = () => {
 
       <section className="max-w-lg mx-auto px-4 pb-24">
 
+        {/* Already registered? */}
+        <div className="mb-5 text-center">
+          <a
+            href="/conference/slip"
+            className="inline-flex items-center gap-1.5 text-sm text-purple-400 hover:text-purple-300 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Already registered? Get your slip
+          </a>
+        </div>
+
         {/* Fee banner */}
         <div className="bg-purple-900/40 border border-purple-500/20 rounded-xl p-4 mb-6 text-center">
           <p className="text-purple-300 text-xs uppercase tracking-widest mb-1 font-semibold">Registration Fee</p>
@@ -549,9 +577,10 @@ const Conference = () => {
             ) : (
               <button
                 type="button" onClick={handleSubmit}
-                className="flex-1 py-4 rounded-xl font-bold text-white text-base sm:text-lg bg-purple-600 hover:bg-purple-700 active:scale-95 transition-all duration-200"
+                disabled={submitting}
+                className="flex-1 py-4 rounded-xl font-bold text-white text-base sm:text-lg bg-purple-600 hover:bg-purple-700 active:scale-95 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {`Pay ₦${CONFERENCE_FEE.toLocaleString()} & Register`}
+                {submitting ? 'Saving…' : `Pay ₦${CONFERENCE_FEE.toLocaleString()} & Register`}
               </button>
             )}
           </div>

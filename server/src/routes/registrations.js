@@ -1,17 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { Resend } = require('resend');
 const pool = require('../db');
-
-const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM_EMAIL = process.env.FROM_EMAIL || 'noreply@mryc.online';
-const APP_URL = process.env.APP_URL || 'https://mryc.online';
-
-const STATE_LABELS = {
-  FCT: 'FCT — Abuja',
-  NIGER: 'Niger State',
-  KADUNA: 'Kaduna State',
-};
+const { sendSlipEmail, sendSummaryEmail } = require('../utils/email');
 
 const toReg = (row) => ({
   id: String(row.id),
@@ -46,192 +36,82 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
-function buildSlipEmail(reg, overrideEmail, customMessage) {
-  const stateLabel = reg.state === 'OTHER' && reg.dccZone
-    ? `${reg.dccZone} State`
-    : (STATE_LABELS[reg.state] ?? reg.state);
-
-
-  const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-</head>
-<body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:40px 0;">
-    <tr><td align="center">
-      <table width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
-
-        <!-- Header -->
-        <tr>
-          <td style="background:#7c3aed;padding:32px 40px;text-align:center;">
-            <h1 style="margin:0;color:#ffffff;font-size:18px;font-weight:900;letter-spacing:1px;text-transform:uppercase;">
-              Christ Apostolic Church
-            </h1>
-            <p style="margin:6px 0 0;color:#ddd6fe;font-size:12px;letter-spacing:1px;text-transform:uppercase;">
-              Youth Fellowship · Medaiyese Region
-            </p>
-          </td>
-        </tr>
-
-        <!-- Sub-header -->
-        <tr>
-          <td style="background:#6d28d9;padding:12px 40px;text-align:center;">
-            <p style="margin:0;color:#ede9fe;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">
-              2026 Youth Conference · Registration Slip
-            </p>
-          </td>
-        </tr>
-
-        <!-- Body -->
-        <tr>
-          <td style="padding:36px 40px;">
-            <p style="margin:0 0 6px;color:#7c3aed;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;">
-              Registration Confirmed
-            </p>
-            <h2 style="margin:0 0 24px;color:#111827;font-size:22px;font-weight:900;">
-              Hello, ${reg.name}!
-            </h2>
-            <p style="margin:0 0 24px;color:#374151;font-size:15px;line-height:1.6;">
-              Your registration for the <strong>2026 CAC Youth Fellowship Annual Conference</strong>
-              has been confirmed. Keep this slip safe — you will need your
-              <strong>Registration ID</strong> to enter the venue.
-            </p>
-
-            ${customMessage ? `
-            <!-- Custom admin message -->
-            <table width="100%" cellpadding="0" cellspacing="0" style="background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;margin-bottom:24px;">
-              <tr>
-                <td style="padding:18px 22px;">
-                  <p style="margin:0 0 6px;color:#92400e;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;">
-                    Message from the Organisers
-                  </p>
-                  <p style="margin:0;color:#78350f;font-size:14px;line-height:1.7;white-space:pre-wrap;">${customMessage.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>
-                </td>
-              </tr>
-            </table>` : ''}
-
-            <!-- Details box -->
-            <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:24px;">
-              <tr>
-                <td style="padding:24px 28px;">
-                  <p style="margin:0 0 16px;color:#6b7280;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;">
-                    Your Registration Details
-                  </p>
-                  <table cellpadding="0" cellspacing="0" width="100%">
-                    <tr>
-                      <td style="color:#6b7280;font-size:14px;padding-bottom:10px;padding-right:16px;">Full Name</td>
-                      <td style="color:#111827;font-size:14px;font-weight:700;padding-bottom:10px;">${reg.name}</td>
-                    </tr>
-                    <tr>
-                      <td style="color:#6b7280;font-size:14px;padding-bottom:10px;padding-right:16px;">State</td>
-                      <td style="color:#111827;font-size:14px;font-weight:700;padding-bottom:10px;">${stateLabel}</td>
-                    </tr>
-                    <tr>
-                      <td style="color:#6b7280;font-size:14px;padding-right:16px;">Phone</td>
-                      <td style="color:#111827;font-size:14px;font-weight:700;">${reg.phone ?? '—'}</td>
-                    </tr>
-                  </table>
-                </td>
-              </tr>
-            </table>
-
-            <!-- Registration code -->
-            <table width="100%" cellpadding="0" cellspacing="0" style="background:#faf5ff;border:2px dashed #c4b5fd;border-radius:12px;margin-bottom:28px;">
-              <tr>
-                <td style="padding:28px 20px;text-align:center;">
-                  <p style="margin:0 0 12px;color:#6b7280;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2px;">
-                    Registration ID
-                  </p>
-                  <p style="margin:0;font-family:monospace;font-size:28px;font-weight:900;letter-spacing:4px;color:#1f2937;word-break:break-all;">
-                    ${reg.uniqueCode}
-                  </p>
-                  <p style="margin:12px 0 0;color:#9ca3af;font-size:12px;">
-                    Present this code at the venue for verification
-                  </p>
-                </td>
-              </tr>
-            </table>
-
-            <!-- CTA -->
-            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
-              <tr>
-                <td align="center">
-                  <a href="${APP_URL}/conference/slip?code=${encodeURIComponent(reg.uniqueCode)}"
-                    style="display:inline-block;background:#7c3aed;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:14px 32px;border-radius:8px;">
-                    View &amp; Print Your Slip →
-                  </a>
-                </td>
-              </tr>
-            </table>
-
-            <p style="margin:0;color:#6b7280;font-size:13px;line-height:1.6;">
-              You can also screenshot this email for easy access at the venue.
-              If you have any questions, please reach out to your DCC/Zone coordinator.
-            </p>
-          </td>
-        </tr>
-
-        <!-- Footer -->
-        <tr>
-          <td style="background:#f9fafb;padding:20px 40px;text-align:center;border-top:1px solid #e5e7eb;">
-            <p style="margin:0;color:#9ca3af;font-size:12px;">
-              mryc.online · CAC Youth Fellowship Medaiyese Region · 2026 Annual Conference
-            </p>
-          </td>
-        </tr>
-
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`;
-
-  return {
-    from: FROM_EMAIL,
-    to: overrideEmail || reg.email,
-    subject: `Your 2026 CAC Youth Conference Registration Slip — ${reg.uniqueCode}`,
-    html,
-  };
-}
-
-async function sendSlipEmail(reg, overrideEmail, customMessage) {
-  return resend.emails.send(buildSlipEmail(reg, overrideEmail, customMessage));
-}
-
-// POST /api/registrations — create (no auth, called after payment)
+// POST /api/registrations — create (called before payment with status='pending',
+// or as fallback with status='success' if pre-save failed)
 router.post('/', async (req, res) => {
   const {
     firstName, middleName, lastName, name, dob, dccZone, assemblyName, denomination, gender,
     phone, email, state, status, occupation, qualification,
-    uniqueCode, paymentRef, txRef, amount,
+    uniqueCode, paymentRef, txRef, amount, paymentStatus,
   } = req.body;
+
+  const resolvedStatus = paymentStatus || 'pending';
 
   try {
     const result = await pool.query(
       `INSERT INTO registrations
         (first_name, middle_name, last_name, name, dob, dcc_zone, assembly_name, denomination, gender,
          phone, email, state, status, occupation, qualification,
-         unique_code, payment_ref, tx_ref, amount)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+         unique_code, payment_ref, tx_ref, amount, payment_status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
        RETURNING *`,
       [
         firstName, middleName || null, lastName, name, dob, dccZone, assemblyName || null,
         denomination || null, gender, phone, email, state, status, occupation, qualification,
-        uniqueCode, paymentRef || null, txRef || null, amount || 3100,
+        uniqueCode, paymentRef || null, txRef || null, amount || 3100, resolvedStatus,
       ]
     );
     const reg = toReg(result.rows[0]);
 
-    // Send slip email in background — never fail the registration if this errors
-    sendSlipEmail(reg).catch(err => console.error('Slip email failed:', err.message));
+    // Only send email when payment is already confirmed (fallback path)
+    if (resolvedStatus === 'success' && reg.email) {
+      sendSlipEmail(reg).catch(err => console.error('Slip email failed:', err.message));
+    }
 
     res.status(201).json(reg);
   } catch (err) {
     console.error('Create registration error:', err);
     res.status(500).json({ error: 'Failed to save registration' });
+  }
+});
+
+// POST /api/registrations/resend — public recovery: resend slip(s) by phone or email.
+// One adult may register multiple kids under the same contact, so we collect all
+// successful registrations. If there's just one we send the normal slip; if more,
+// we send a single consolidated summary so the inbox isn't flooded.
+router.post('/resend', async (req, res) => {
+  const { email, phone } = req.body || {};
+  if (!email && !phone) return res.status(400).json({ error: 'Provide email or phone' });
+
+  try {
+    const result = email
+      ? await pool.query(
+          `SELECT * FROM registrations WHERE LOWER(email) = LOWER($1) AND payment_status = 'success' ORDER BY registered_at ASC`,
+          [email.trim()]
+        )
+      : await pool.query(
+          `SELECT * FROM registrations WHERE phone = $1 AND payment_status = 'success' ORDER BY registered_at ASC`,
+          [phone.trim()]
+        );
+
+    if (result.rows.length > 0) {
+      const regs = result.rows.map(toReg);
+      const toEmail = regs[0].email;
+
+      if (toEmail) {
+        if (regs.length === 1) {
+          sendSlipEmail(regs[0]).catch(err => console.error('Resend failed:', err.message));
+        } else {
+          sendSummaryEmail(regs, toEmail).catch(err => console.error('Summary resend failed:', err.message));
+        }
+      }
+    }
+
+    // Always respond generically — don't reveal whether any record was found
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Resend error:', err);
+    res.status(500).json({ error: 'Failed to resend slip' });
   }
 });
 

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
+const { sendSlipEmail } = require('../utils/email');
 
 // ── POST /api/payment/webhook ──────────────────────────────────────────────
 // Flutterwave sends this server-to-server after a payment completes.
@@ -23,12 +24,29 @@ router.post('/webhook', async (req, res) => {
   if (event === 'charge.completed' && data?.tx_ref) {
     const status = data.status === 'successful' ? 'success' : data.status;
     try {
-      await pool.query(
+      const updated = await pool.query(
         `UPDATE registrations
          SET payment_status = $1, payment_ref = $2
-         WHERE tx_ref = $3`,
+         WHERE tx_ref = $3
+         RETURNING name, state, dcc_zone, phone, email, unique_code`,
         [status, String(data.id), data.tx_ref]
       );
+
+      // Send the confirmation email now that payment is verified server-to-server
+      if (status === 'success' && updated.rows.length > 0) {
+        const r = updated.rows[0];
+        const reg = {
+          name: r.name,
+          state: r.state,
+          dccZone: r.dcc_zone,
+          phone: r.phone,
+          email: r.email,
+          uniqueCode: r.unique_code,
+        };
+        if (reg.email) {
+          sendSlipEmail(reg).catch(err => console.error('Webhook email failed:', err.message));
+        }
+      }
     } catch (err) {
       console.error('FLW webhook DB error:', err);
     }
