@@ -53,3 +53,9 @@ DO $$ BEGIN
     ALTER TABLE registrations ADD COLUMN assembly_name VARCHAR(200);
   END IF;
 END $$;
+
+-- Prevent duplicate registrations per payment transaction.
+-- NULL tx_ref values are excluded so pre-saves without a ref are unaffected.
+CREATE UNIQUE INDEX IF NOT EXISTS registrations_tx_ref_unique
+  ON registrations (tx_ref)
+  WHERE tx_ref IS NOT NULL;

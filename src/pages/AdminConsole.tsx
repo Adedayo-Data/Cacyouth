@@ -13,6 +13,7 @@ interface Registration {
   dob?: string;
   uniqueCode: string;
   paymentRef: string;
+  paymentStatus: string;
   amount: number;
   verified: boolean;
   verifiedAt?: string;
@@ -113,6 +114,7 @@ const AdminConsole = () => {
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [loadingRegs, setLoadingRegs] = useState(false);
   const [filter, setFilter] = useState<StateFilter>('ALL');
+  const [paymentFilter, setPaymentFilter] = useState<'paid' | 'all'>('paid');
   const [search, setSearch] = useState('');
   const [verifying, setVerifying] = useState<string | null>(null);
   const [verifyState, setVerifyState] = useState<'FCT' | 'NIGER' | 'KADUNA' | 'OTHER' | ''>('');
@@ -306,7 +308,7 @@ const AdminConsole = () => {
 
   const handleBulkSendSlips = () => {
     setConfirmModal({
-      message: `Send registration slips to all ${registrations.length} registrant${registrations.length !== 1 ? 's' : ''}? Each person will receive their slip at their registered email address.`,
+      message: `Send registration slips to all ${paidRegistrations.length} paid registrant${paidRegistrations.length !== 1 ? 's' : ''}? Each person will receive their slip at their registered email address.`,
       onConfirm: () => { setConfirmModal(null); doBulkSend(); },
     });
   };
@@ -329,7 +331,9 @@ const AdminConsole = () => {
   }, [printTarget]);
 
   /* ── Derived data ── */
-  const filtered = registrations
+  const paidRegistrations = registrations.filter(r => r.paymentStatus === 'success');
+
+  const filtered = (paymentFilter === 'paid' ? paidRegistrations : registrations)
     .filter(r => filter === 'ALL' || r.state === filter)
     .filter(r => {
       if (!search.trim()) return true;
@@ -338,16 +342,17 @@ const AdminConsole = () => {
     });
 
   const printData = printTarget
-    ? (printTarget === 'ALL' ? registrations : registrations.filter(r => r.state === printTarget))
+    ? (printTarget === 'ALL' ? paidRegistrations : paidRegistrations.filter(r => r.state === printTarget))
     : [];
   const printLabel = printTarget === 'ALL' ? 'All States' : printTarget ? `${STATE_LABELS[printTarget]} State` : '';
 
   const stats = {
-    total: registrations.length,
-    FCT: registrations.filter(r => r.state === 'FCT').length,
-    NIGER: registrations.filter(r => r.state === 'NIGER').length,
-    KADUNA: registrations.filter(r => r.state === 'KADUNA').length,
-    verified: registrations.filter(r => r.verified).length,
+    total: paidRegistrations.length,
+    drafts: registrations.length - paidRegistrations.length,
+    FCT: paidRegistrations.filter(r => r.state === 'FCT').length,
+    NIGER: paidRegistrations.filter(r => r.state === 'NIGER').length,
+    KADUNA: paidRegistrations.filter(r => r.state === 'KADUNA').length,
+    verified: paidRegistrations.filter(r => r.verified).length,
   };
 
   /* ════ CONFIRM MODAL ════ */
@@ -482,13 +487,14 @@ const AdminConsole = () => {
           {/* ════ REGISTRATIONS TAB ════ */}
           {activeTab === 'registrations' && (
             <>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                 {[
-                  { label: 'Total',   value: stats.total,   cls: 'text-purple-400' },
-                  { label: 'FCT',     value: stats.FCT,     cls: 'text-blue-400' },
-                  { label: 'Niger',   value: stats.NIGER,   cls: 'text-green-400' },
-                  { label: 'Kaduna',  value: stats.KADUNA,  cls: 'text-yellow-400' },
-                  { label: 'Verified',value: stats.verified, cls: 'text-emerald-400' },
+                  { label: 'Paid',     value: stats.total,    cls: 'text-purple-400' },
+                  { label: 'Drafts',   value: stats.drafts,   cls: 'text-gray-500' },
+                  { label: 'FCT',      value: stats.FCT,      cls: 'text-blue-400' },
+                  { label: 'Niger',    value: stats.NIGER,    cls: 'text-green-400' },
+                  { label: 'Kaduna',   value: stats.KADUNA,   cls: 'text-yellow-400' },
+                  { label: 'Verified', value: stats.verified, cls: 'text-emerald-400' },
                 ].map(s => (
                   <div key={s.label} className="bg-white/5 border border-white/10 rounded-xl p-4 text-center">
                     <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">{s.label}</p>
@@ -523,7 +529,7 @@ const AdminConsole = () => {
                   placeholder="Search by name, code, email or phone…"
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all text-sm"
                 />
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 items-center">
                   {(['ALL', 'FCT', 'NIGER', 'KADUNA'] as StateFilter[]).map(f => (
                     <button
                       key={f}
@@ -535,6 +541,24 @@ const AdminConsole = () => {
                       {f === 'ALL' ? 'All States' : STATE_LABELS[f]}
                     </button>
                   ))}
+                  <div className="ml-auto flex items-center gap-1 bg-white/5 border border-white/10 rounded-lg p-1">
+                    <button
+                      onClick={() => setPaymentFilter('paid')}
+                      className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                        paymentFilter === 'paid' ? 'bg-green-700 text-white' : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      Paid only
+                    </button>
+                    <button
+                      onClick={() => setPaymentFilter('all')}
+                      className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                        paymentFilter === 'all' ? 'bg-white/20 text-white' : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      Show drafts
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -899,10 +923,10 @@ const AdminConsole = () => {
 
                 <button
                   onClick={handleBulkSendSlips}
-                  disabled={bulkSending || registrations.length === 0}
+                  disabled={bulkSending || paidRegistrations.length === 0}
                   className="px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-xl text-white font-bold text-sm transition-colors disabled:opacity-50 active:scale-95"
                 >
-                  {bulkSending ? 'Sending in progress…' : `Send Slip to All ${registrations.length} Registrants`}
+                  {bulkSending ? 'Sending in progress…' : `Send Slip to All ${paidRegistrations.length} Paid Registrants`}
                 </button>
               </div>
 

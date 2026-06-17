@@ -12,7 +12,8 @@ const paymentRouter = require('./routes/payment');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(cors());
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'https://mryc.online').split(',').map(o => o.trim());
+app.use(cors({ origin: ALLOWED_ORIGINS }));
 app.use(express.json());
 
 // ── API routes ────────────────────────────────────────────────────────────────

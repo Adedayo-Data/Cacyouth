@@ -55,9 +55,13 @@ router.post('/webhook', async (req, res) => {
   res.status(200).send('OK');
 });
 
-// ── GET /api/payment/status/:txRef ────────────────────────────────────────
-// Optional: check payment status for a given tx_ref (admin use / debugging).
-router.get('/status/:txRef', async (req, res) => {
+// ── GET /api/payment/status/:txRef ── admin only ──────────────────────────
+router.get('/status/:txRef', (req, res, next) => {
+  if (req.headers['x-admin-key'] !== process.env.ADMIN_PASSWORD) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  next();
+}, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT unique_code, payment_status, tx_ref FROM registrations WHERE tx_ref = $1`,

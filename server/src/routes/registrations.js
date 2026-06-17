@@ -22,6 +22,7 @@ const toReg = (row) => ({
   qualification: row.qualification,
   uniqueCode: row.unique_code,
   paymentRef: row.payment_ref,
+  paymentStatus: row.payment_status,
   txRef: row.tx_ref,
   amount: row.amount,
   verified: row.verified,
@@ -36,39 +37,44 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
-// POST /api/registrations — create (called before payment with status='pending',
-// or as fallback with status='success' if pre-save failed)
+// POST /api/registrations — create a pending registration before payment begins.
+// payment_status is always forced to 'pending' here — only the Flutterwave
+// webhook (verified by secret hash) is allowed to promote it to 'success'.
 router.post('/', async (req, res) => {
   const {
     firstName, middleName, lastName, name, dob, dccZone, assemblyName, denomination, gender,
     phone, email, state, status, occupation, qualification,
-    uniqueCode, paymentRef, txRef, amount, paymentStatus,
+    uniqueCode, txRef, amount,
   } = req.body;
 
-  const resolvedStatus = paymentStatus || 'pending';
-
   try {
+    // Idempotency: if a record with this tx_ref already exists, return it instead of
+    // inserting a duplicate. This prevents the client's fallback path from creating
+    // a second row when the pre-save succeeded but the network response was lost.
+    if (txRef) {
+      const existing = await pool.query(
+        'SELECT * FROM registrations WHERE tx_ref = $1',
+        [txRef]
+      );
+      if (existing.rows.length > 0) {
+        return res.status(200).json(toReg(existing.rows[0]));
+      }
+    }
+
     const result = await pool.query(
       `INSERT INTO registrations
         (first_name, middle_name, last_name, name, dob, dcc_zone, assembly_name, denomination, gender,
          phone, email, state, status, occupation, qualification,
-         unique_code, payment_ref, tx_ref, amount, payment_status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+         unique_code, tx_ref, amount, payment_status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
        RETURNING *`,
       [
         firstName, middleName || null, lastName, name, dob, dccZone, assemblyName || null,
         denomination || null, gender, phone, email, state, status, occupation, qualification,
-        uniqueCode, paymentRef || null, txRef || null, amount || 3100, resolvedStatus,
+        uniqueCode, txRef || null, amount || 3100, 'pending',
       ]
     );
-    const reg = toReg(result.rows[0]);
-
-    // Only send email when payment is already confirmed (fallback path)
-    if (resolvedStatus === 'success' && reg.email) {
-      sendSlipEmail(reg).catch(err => console.error('Slip email failed:', err.message));
-    }
-
-    res.status(201).json(reg);
+    res.status(201).json(toReg(result.rows[0]));
   } catch (err) {
     console.error('Create registration error:', err);
     res.status(500).json({ error: 'Failed to save registration' });
@@ -160,7 +166,9 @@ router.post('/bulk/send-slips', requireAdmin, async (req, res) => {
   const push = (data) => res.write(`data: ${JSON.stringify(data)}\n\n`);
 
   try {
-    const result = await pool.query('SELECT * FROM registrations ORDER BY registered_at ASC');
+    const result = await pool.query(
+      `SELECT * FROM registrations WHERE payment_status = 'success' ORDER BY registered_at ASC`
+    );
     const rows = result.rows.map(toReg).filter(r => r.email);
     const total = rows.length;
 
@@ -224,13 +232,14 @@ router.get('/state/:state', async (req, res) => {
   }
 });
 
-// GET /api/registrations/by-code/:code — public, returns slip-safe fields only (no payment data)
+// GET /api/registrations/by-code/:code — public, returns slip-safe fields only (no payment data).
+// Only returns records with a successful payment so unpaid drafts cannot generate a slip.
 router.get('/by-code/:code', async (req, res) => {
   const { code } = req.params;
   try {
     const result = await pool.query(
       `SELECT name, unique_code, state, dcc_zone, assembly_name, denomination, phone
-       FROM registrations WHERE UPPER(unique_code) = UPPER($1)`,
+       FROM registrations WHERE UPPER(unique_code) = UPPER($1) AND payment_status = 'success'`,
       [code.trim()]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Registration not found' });

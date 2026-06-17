@@ -10,10 +10,15 @@ const STATE_LABELS = {
   KADUNA: 'Kaduna State',
 };
 
+const esc = (s) =>
+  String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
 function buildSlipEmail(reg, overrideEmail, customMessage) {
-  const stateLabel = reg.state === 'OTHER' && reg.dccZone
-    ? `${reg.dccZone} State`
-    : (STATE_LABELS[reg.state] ?? reg.state);
+  const stateLabel = esc(
+    reg.state === 'OTHER' && reg.dccZone
+      ? `${reg.dccZone} State`
+      : (STATE_LABELS[reg.state] ?? reg.state)
+  );
 
   const html = `
 <!DOCTYPE html>
@@ -52,7 +57,7 @@ function buildSlipEmail(reg, overrideEmail, customMessage) {
               Registration Confirmed
             </p>
             <h2 style="margin:0 0 24px;color:#111827;font-size:22px;font-weight:900;">
-              Hello, ${reg.name}!
+              Hello, ${esc(reg.name)}!
             </h2>
             <p style="margin:0 0 24px;color:#374151;font-size:15px;line-height:1.6;">
               Your registration for the <strong>2026 CAC Youth Fellowship Annual Conference</strong>
@@ -81,7 +86,7 @@ function buildSlipEmail(reg, overrideEmail, customMessage) {
                   <table cellpadding="0" cellspacing="0" width="100%">
                     <tr>
                       <td style="color:#6b7280;font-size:14px;padding-bottom:10px;padding-right:16px;">Full Name</td>
-                      <td style="color:#111827;font-size:14px;font-weight:700;padding-bottom:10px;">${reg.name}</td>
+                      <td style="color:#111827;font-size:14px;font-weight:700;padding-bottom:10px;">${esc(reg.name)}</td>
                     </tr>
                     <tr>
                       <td style="color:#6b7280;font-size:14px;padding-bottom:10px;padding-right:16px;">State</td>
@@ -89,7 +94,7 @@ function buildSlipEmail(reg, overrideEmail, customMessage) {
                     </tr>
                     <tr>
                       <td style="color:#6b7280;font-size:14px;padding-right:16px;">Phone</td>
-                      <td style="color:#111827;font-size:14px;font-weight:700;">${reg.phone ?? '—'}</td>
+                      <td style="color:#111827;font-size:14px;font-weight:700;">${esc(reg.phone ?? '—')}</td>
                     </tr>
                   </table>
                 </td>
@@ -103,7 +108,7 @@ function buildSlipEmail(reg, overrideEmail, customMessage) {
                     Registration ID
                   </p>
                   <p style="margin:0;font-family:monospace;font-size:28px;font-weight:900;letter-spacing:4px;color:#1f2937;word-break:break-all;">
-                    ${reg.uniqueCode}
+                    ${esc(reg.uniqueCode)}
                   </p>
                   <p style="margin:12px 0 0;color:#9ca3af;font-size:12px;">
                     Present this code at the venue for verification
@@ -160,21 +165,23 @@ async function sendSlipEmail(reg, overrideEmail, customMessage) {
 // Lists every registrant with their code and a "View Slip" link in one email.
 function buildSummaryEmail(regs, toEmail) {
   const rows = regs.map(reg => {
-    const stateLabel = reg.state === 'OTHER' && reg.dccZone
-      ? `${reg.dccZone} State`
-      : (STATE_LABELS[reg.state] ?? reg.state);
+    const stateLabel = esc(
+      reg.state === 'OTHER' && reg.dccZone
+        ? `${reg.dccZone} State`
+        : (STATE_LABELS[reg.state] ?? reg.state)
+    );
 
     return `
       <tr>
         <td style="padding:14px 16px;border-bottom:1px solid #e5e7eb;color:#111827;font-size:14px;font-weight:600;">
-          ${reg.name}
+          ${esc(reg.name)}
         </td>
         <td style="padding:14px 16px;border-bottom:1px solid #e5e7eb;color:#6b7280;font-size:13px;">
           ${stateLabel}
         </td>
         <td style="padding:14px 16px;border-bottom:1px solid #e5e7eb;">
           <span style="font-family:monospace;font-size:13px;font-weight:700;letter-spacing:2px;color:#1f2937;">
-            ${reg.uniqueCode}
+            ${esc(reg.uniqueCode)}
           </span>
         </td>
         <td style="padding:14px 16px;border-bottom:1px solid #e5e7eb;text-align:center;">

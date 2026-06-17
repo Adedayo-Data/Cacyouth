@@ -194,19 +194,18 @@ const Conference = () => {
           }));
 
           if (!preSaved) {
-            // Pre-save failed earlier — save now with success so the record makes it to DB
+            // Pre-save failed earlier — create the row now so the webhook can find it
+            // and update it to 'success'. Server always stores 'pending'; webhook sets success.
             fetch(`${API}/api/registrations`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 ...form, name: fullName, uniqueCode,
                 assemblyName: form.assemblyName || null,
-                paymentRef: String(response.transaction_id),
-                txRef: response.tx_ref, amount: CONFERENCE_FEE, paymentStatus: 'success',
+                txRef: response.tx_ref, amount: CONFERENCE_FEE,
               }),
             }).catch(err => console.error('Registration save error:', err));
           }
-          // If pre-save succeeded the webhook will update status → 'success' and send the email.
 
           setTimeout(() => { window.location.href = '/conference/slip'; }, 2000);
         }
