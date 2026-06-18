@@ -114,7 +114,7 @@ const AdminConsole = () => {
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [loadingRegs, setLoadingRegs] = useState(false);
   const [filter, setFilter] = useState<StateFilter>('ALL');
-  const [paymentFilter, setPaymentFilter] = useState<'paid' | 'all'>('paid');
+  const [paymentFilter, setPaymentFilter] = useState<'paid' | 'all'>('all');
   const [search, setSearch] = useState('');
   const [verifying, setVerifying] = useState<string | null>(null);
   const [verifyState, setVerifyState] = useState<'FCT' | 'NIGER' | 'KADUNA' | 'OTHER' | ''>('');
@@ -331,7 +331,12 @@ const AdminConsole = () => {
   }, [printTarget]);
 
   /* ── Derived data ── */
-  const paidRegistrations = registrations.filter(r => r.paymentStatus === 'success');
+  // Accept both 'success' (our stored value) and 'successful' (raw Flutterwave value)
+  // in case old records were written before the mapping was in place.
+  const isPaid = (r: Registration) =>
+    r.paymentStatus === 'success' || r.paymentStatus === 'successful';
+
+  const paidRegistrations = registrations.filter(isPaid);
 
   const filtered = (paymentFilter === 'paid' ? paidRegistrations : registrations)
     .filter(r => filter === 'ALL' || r.state === filter)
@@ -576,7 +581,7 @@ const AdminConsole = () => {
                     <table className="w-full text-sm">
                       <thead className="bg-white/5">
                         <tr>
-                          {['#', 'Name', 'State', 'Code', 'Phone', 'Age', 'Date', 'Status', 'Action'].map(h => (
+                          {['#', 'Name', 'State', 'Code', 'Phone', 'Age', 'Date', 'Payment', 'Status', 'Action'].map(h => (
                             <th key={h} className="px-4 py-3 text-left text-gray-400 font-semibold uppercase text-xs tracking-wider whitespace-nowrap">{h}</th>
                           ))}
                         </tr>
@@ -607,6 +612,11 @@ const AdminConsole = () => {
                               })()}
                             </td>
                             <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">{new Date(reg.registeredAt).toLocaleDateString('en-NG')}</td>
+                            <td className="px-4 py-3">
+                              <span className={`px-2 py-1 rounded-md text-xs font-semibold ${isPaid(reg) ? 'bg-emerald-900/40 text-emerald-400' : 'bg-yellow-900/30 text-yellow-500'}`}>
+                                {isPaid(reg) ? '✓ Paid' : 'Draft'}
+                              </span>
+                            </td>
                             <td className="px-4 py-3">
                               <span className={`px-2 py-1 rounded-md text-xs font-semibold ${reg.verified ? 'bg-green-900/40 text-green-400' : 'bg-white/5 text-gray-400'}`}>
                                 {reg.verified ? '✓ Verified' : 'Pending'}
@@ -656,18 +666,21 @@ const AdminConsole = () => {
                             </div>
                           ) : null;
                         })()}
-                        <div className="flex items-center justify-between gap-2">
-                          <span className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${reg.verified ? 'bg-green-900/40 text-green-400' : 'bg-white/5 text-gray-400'}`}>
-                            {reg.verified ? '✓ Verified' : 'Pending'}
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-1 rounded-md text-xs font-semibold ${isPaid(reg) ? 'bg-emerald-900/40 text-emerald-400' : 'bg-yellow-900/30 text-yellow-500'}`}>
+                            {isPaid(reg) ? '✓ Paid' : 'Draft'}
                           </span>
-                          <button
-                            onClick={() => handleVerify(reg)}
-                            disabled={verifying === reg.id}
-                            className={`flex-1 py-2 rounded-lg text-xs font-bold transition-colors disabled:opacity-50 ${reg.verified ? 'bg-red-900/40 hover:bg-red-900/70 text-red-300' : 'bg-green-900/40 hover:bg-green-900/70 text-green-300'}`}
-                          >
-                            {verifying === reg.id ? '…' : reg.verified ? 'Unverify' : 'Verify'}
-                          </button>
+                          <span className={`px-2 py-1 rounded-md text-xs font-semibold ${reg.verified ? 'bg-green-900/40 text-green-400' : 'bg-white/5 text-gray-400'}`}>
+                            {reg.verified ? '✓ Verified' : 'Unverified'}
+                          </span>
                         </div>
+                        <button
+                          onClick={() => handleVerify(reg)}
+                          disabled={verifying === reg.id}
+                          className={`w-full py-2 rounded-lg text-xs font-bold transition-colors disabled:opacity-50 ${reg.verified ? 'bg-red-900/40 hover:bg-red-900/70 text-red-300' : 'bg-green-900/40 hover:bg-green-900/70 text-green-300'}`}
+                        >
+                          {verifying === reg.id ? '…' : reg.verified ? 'Unverify' : 'Verify'}
+                        </button>
                       </div>
                     ))}
                   </div>
