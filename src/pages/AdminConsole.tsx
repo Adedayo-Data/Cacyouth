@@ -118,6 +118,8 @@ const AdminConsole = () => {
   const [search, setSearch] = useState('');
   const [verifying, setVerifying] = useState<string | null>(null);
   const [verifyState, setVerifyState] = useState<'FCT' | 'NIGER' | 'KADUNA' | 'OTHER' | ''>('');
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<{ synced: number; checked: number; failed: number; message?: string } | null>(null);
 
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [loadingStaff, setLoadingStaff] = useState(false);
@@ -171,6 +173,26 @@ const AdminConsole = () => {
       setRegistrations(await res.json());
     } catch (err) { console.error(err); }
     finally { setLoadingRegs(false); }
+  };
+
+  /* ── Sync payments from Flutterwave ── */
+  const handleSyncPayments = async () => {
+    setSyncing(true);
+    setSyncResult(null);
+    try {
+      const res = await fetch(`${API}/api/payment/sync`, {
+        method: 'POST',
+        headers: adminHeaders,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Sync failed');
+      setSyncResult(data);
+      if (data.synced > 0) fetchRegistrations();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Sync failed — check that FLW_SECRET_KEY is set in Railway');
+    } finally {
+      setSyncing(false);
+    }
   };
 
   /* ── Fetch staff ── */
@@ -458,7 +480,15 @@ const AdminConsole = () => {
               <p className="text-gray-400 text-xs mt-0.5 hidden sm:block">2026 Youth Conference Management</p>
             </div>
           </div>
-          <div className="flex gap-2 shrink-0">
+          <div className="flex gap-2 shrink-0 flex-wrap justify-end">
+            <button
+              onClick={handleSyncPayments}
+              disabled={syncing}
+              title="Verify all pending registrations against Flutterwave and mark paid ones as success"
+              className="px-3 sm:px-4 py-2 text-xs sm:text-sm border border-emerald-600/50 text-emerald-400 hover:border-emerald-400 hover:bg-emerald-900/20 rounded-lg transition-colors disabled:opacity-50"
+            >
+              {syncing ? 'Syncing…' : '⟳ Sync Payments'}
+            </button>
             <button onClick={fetchRegistrations} className="px-3 sm:px-4 py-2 text-xs sm:text-sm border border-white/20 hover:border-purple-400 rounded-lg transition-colors">
               Refresh
             </button>
@@ -488,6 +518,18 @@ const AdminConsole = () => {
         </div>
 
         <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+
+          {/* Sync result banner — shown after syncing payments */}
+          {syncResult && (
+            <div className={`rounded-xl px-4 py-3 border text-sm flex items-center justify-between gap-3 ${syncResult.synced > 0 ? 'bg-emerald-900/20 border-emerald-500/30 text-emerald-300' : 'bg-white/5 border-white/10 text-gray-300'}`}>
+              <span>
+                {syncResult.message
+                  ? syncResult.message
+                  : `Synced ${syncResult.synced} payment${syncResult.synced !== 1 ? 's' : ''} from Flutterwave (checked ${syncResult.checked})`}
+              </span>
+              <button onClick={() => setSyncResult(null)} className="text-gray-500 hover:text-white text-xs shrink-0">✕</button>
+            </div>
+          )}
 
           {/* ════ REGISTRATIONS TAB ════ */}
           {activeTab === 'registrations' && (
