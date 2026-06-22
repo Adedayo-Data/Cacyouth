@@ -50,7 +50,7 @@ interface StaffMember {
 }
 
 type TabType = 'registrations' | 'verify' | 'staff' | 'send-slip';
-type StateFilter = 'ALL' | 'FCT' | 'NIGER' | 'KADUNA';
+type StateFilter = 'ALL' | 'FCT' | 'NIGER' | 'KADUNA' | 'OTHER';
 
 const STATE_LABELS: Record<string, string> = { FCT: 'FCT', NIGER: 'Niger', KADUNA: 'Kaduna', OTHER: 'Other States' };
 const STATE_COLORS: Record<string, string> = {
@@ -360,8 +360,10 @@ const AdminConsole = () => {
 
   const paidRegistrations = registrations.filter(isPaid);
 
+  const isOther = (state: string) => state !== 'FCT' && state !== 'NIGER' && state !== 'KADUNA';
+
   const filtered = (paymentFilter === 'paid' ? paidRegistrations : registrations)
-    .filter(r => filter === 'ALL' || r.state === filter)
+    .filter(r => filter === 'ALL' || (filter === 'OTHER' ? isOther(r.state) : r.state === filter))
     .filter(r => {
       if (!search.trim()) return true;
       const s = search.toLowerCase();
@@ -369,7 +371,11 @@ const AdminConsole = () => {
     });
 
   const printData = printTarget
-    ? (printTarget === 'ALL' ? paidRegistrations : paidRegistrations.filter(r => r.state === printTarget))
+    ? (printTarget === 'ALL'
+        ? paidRegistrations
+        : printTarget === 'OTHER'
+          ? paidRegistrations.filter(r => isOther(r.state))
+          : paidRegistrations.filter(r => r.state === printTarget))
     : [];
   const printLabel = printTarget === 'ALL' ? 'All States' : printTarget ? `${STATE_LABELS[printTarget]} State` : '';
 
@@ -379,6 +385,7 @@ const AdminConsole = () => {
     FCT: paidRegistrations.filter(r => r.state === 'FCT').length,
     NIGER: paidRegistrations.filter(r => r.state === 'NIGER').length,
     KADUNA: paidRegistrations.filter(r => r.state === 'KADUNA').length,
+    OTHER: paidRegistrations.filter(r => r.state !== 'FCT' && r.state !== 'NIGER' && r.state !== 'KADUNA').length,
     verified: paidRegistrations.filter(r => r.verified).length,
   };
 
@@ -534,13 +541,14 @@ const AdminConsole = () => {
           {/* ════ REGISTRATIONS TAB ════ */}
           {activeTab === 'registrations' && (
             <>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
                 {[
                   { label: 'Paid',     value: stats.total,    cls: 'text-purple-400' },
                   { label: 'Drafts',   value: stats.drafts,   cls: 'text-gray-500' },
                   { label: 'FCT',      value: stats.FCT,      cls: 'text-blue-400' },
                   { label: 'Niger',    value: stats.NIGER,    cls: 'text-green-400' },
                   { label: 'Kaduna',   value: stats.KADUNA,   cls: 'text-yellow-400' },
+                  { label: 'Others',   value: stats.OTHER,    cls: 'text-purple-400' },
                   { label: 'Verified', value: stats.verified, cls: 'text-emerald-400' },
                 ].map(s => (
                   <div key={s.label} className="bg-white/5 border border-white/10 rounded-xl p-4 text-center">
@@ -553,7 +561,7 @@ const AdminConsole = () => {
               <div className="bg-white/5 border border-white/10 rounded-xl p-4">
                 <p className="text-gray-400 text-xs uppercase tracking-wider mb-3 font-semibold">Print Registrations by State</p>
                 <div className="flex flex-wrap gap-2">
-                  {([['ALL', 'All States'], ['FCT', 'FCT Only'], ['NIGER', 'Niger Only'], ['KADUNA', 'Kaduna Only']] as [StateFilter, string][]).map(([target, label]) => (
+                  {([['ALL', 'All States'], ['FCT', 'FCT Only'], ['NIGER', 'Niger Only'], ['KADUNA', 'Kaduna Only'], ['OTHER', 'Other States']] as [StateFilter, string][]).map(([target, label]) => (
                     <button
                       key={target}
                       onClick={() => handlePrint(target)}
@@ -577,7 +585,7 @@ const AdminConsole = () => {
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all text-sm"
                 />
                 <div className="flex flex-wrap gap-2 items-center">
-                  {(['ALL', 'FCT', 'NIGER', 'KADUNA'] as StateFilter[]).map(f => (
+                  {(['ALL', 'FCT', 'NIGER', 'KADUNA', 'OTHER'] as StateFilter[]).map(f => (
                     <button
                       key={f}
                       onClick={() => setFilter(f)}
