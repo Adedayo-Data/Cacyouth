@@ -18,10 +18,6 @@ interface SlipState {
 }
 
 interface ResumeData {
-  name: string;
-  email: string;
-  phone: string;
-  state: string;
   txRef: string;
   uniqueCode: string;
   amount: number;
@@ -152,9 +148,9 @@ const ConferenceSlip = () => {
       currency: 'NGN',
       payment_options: 'card,ussd,banktransfer',
       customer: {
-        email: resumeData.email,
-        phone_number: resumeData.phone,
-        name: resumeData.name,
+        email: input.includes('@') ? input : '',
+        phone_number: !input.includes('@') ? input : '',
+        name: '',
       },
       customizations: {
         title: 'CAC Youth Conference',
@@ -163,20 +159,13 @@ const ConferenceSlip = () => {
       },
       callback: (response: { status: string; transaction_id: number; tx_ref: string }) => {
         if (response.status === 'successful' || response.status === 'completed') {
-          sessionStorage.setItem('cac_slip', JSON.stringify({
-            name: resumeData.name,
-            state: resumeData.state,
-            phone: resumeData.phone,
-            uniqueCode: resumeData.uniqueCode,
-          }));
-          setTimeout(() => { window.location.href = '/conference/slip'; }, 2000);
+          setTimeout(() => {
+            window.location.href = `/conference/slip?code=${encodeURIComponent(resumeData.uniqueCode)}`;
+          }, 2000);
         }
       },
       onclose: () => {
         setPaying(false);
-        if (sessionStorage.getItem('cac_slip')) {
-          window.location.href = '/conference/slip';
-        }
       },
     });
   };
@@ -192,7 +181,7 @@ const ConferenceSlip = () => {
               <p className="text-3xl mb-3">⚠️</p>
               <h2 className="text-white font-bold text-lg mb-2">Payment Not Completed</h2>
               <p className="text-gray-300 text-sm leading-relaxed">
-                Hi <span className="text-white font-semibold">{resumeData.name}</span>, your registration details are saved but your payment has not been made yet.
+                Your registration details are saved but your payment has not been made yet.
               </p>
               <p className="text-amber-300 text-sm mt-3 font-semibold">
                 Complete your payment to receive your registration slip.

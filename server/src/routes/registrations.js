@@ -118,10 +118,6 @@ router.post('/resume', async (req, res) => {
       const row = pending.rows[0];
       return res.json({
         status: 'pending',
-        name: row.name,
-        email: row.email,
-        phone: row.phone,
-        state: row.state,
         txRef: row.tx_ref,
         uniqueCode: row.unique_code,
         amount: row.amount,
