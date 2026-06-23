@@ -362,7 +362,9 @@ const AdminConsole = () => {
 
   const isOther = (state: string) => state !== 'FCT' && state !== 'NIGER' && state !== 'KADUNA';
 
-  const filtered = (paymentFilter === 'paid' ? paidRegistrations : registrations)
+  const draftRegistrations = registrations.filter(r => !isPaid(r));
+
+  const filtered = (paymentFilter === 'paid' ? paidRegistrations : draftRegistrations)
     .filter(r => filter === 'ALL' || (filter === 'OTHER' ? isOther(r.state) : r.state === filter))
     .filter(r => {
       if (!search.trim()) return true;
@@ -380,6 +382,7 @@ const AdminConsole = () => {
   const printLabel = printTarget === 'ALL' ? 'All States' : printTarget ? `${STATE_LABELS[printTarget]} State` : '';
 
   const stats = {
+    allTotal: registrations.length,
     total: paidRegistrations.length,
     drafts: registrations.length - paidRegistrations.length,
     FCT: paidRegistrations.filter(r => r.state === 'FCT').length,
@@ -541,8 +544,9 @@ const AdminConsole = () => {
           {/* ════ REGISTRATIONS TAB ════ */}
           {activeTab === 'registrations' && (
             <>
-              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
                 {[
+                  { label: 'Total',    value: stats.allTotal, cls: 'text-white' },
                   { label: 'Paid',     value: stats.total,    cls: 'text-purple-400' },
                   { label: 'Drafts',   value: stats.drafts,   cls: 'text-gray-500' },
                   { label: 'FCT',      value: stats.FCT,      cls: 'text-blue-400' },
