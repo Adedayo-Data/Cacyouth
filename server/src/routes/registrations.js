@@ -81,6 +81,60 @@ router.post('/', async (req, res) => {
   }
 });
 
+// POST /api/registrations/resume — check payment status and return data needed to resume payment.
+// Returns: { status: 'paid' } | { status: 'pending', name, email, phone, state, txRef, uniqueCode, amount } | { status: 'not_found' }
+router.post('/resume', async (req, res) => {
+  const { email, phone } = req.body || {};
+  if (!email && !phone) return res.status(400).json({ error: 'Provide email or phone' });
+
+  try {
+    const paid = email
+      ? await pool.query(
+          `SELECT id FROM registrations WHERE LOWER(email) = LOWER($1) AND payment_status = 'success' LIMIT 1`,
+          [email.trim()]
+        )
+      : await pool.query(
+          `SELECT id FROM registrations WHERE phone = $1 AND payment_status = 'success' LIMIT 1`,
+          [phone.trim()]
+        );
+
+    if (paid.rows.length > 0) return res.json({ status: 'paid' });
+
+    const pending = email
+      ? await pool.query(
+          `SELECT name, email, phone, state, tx_ref, unique_code, amount
+           FROM registrations WHERE LOWER(email) = LOWER($1) AND payment_status = 'pending'
+           ORDER BY registered_at DESC LIMIT 1`,
+          [email.trim()]
+        )
+      : await pool.query(
+          `SELECT name, email, phone, state, tx_ref, unique_code, amount
+           FROM registrations WHERE phone = $1 AND payment_status = 'pending'
+           ORDER BY registered_at DESC LIMIT 1`,
+          [phone.trim()]
+        );
+
+    if (pending.rows.length > 0) {
+      const row = pending.rows[0];
+      return res.json({
+        status: 'pending',
+        name: row.name,
+        email: row.email,
+        phone: row.phone,
+        state: row.state,
+        txRef: row.tx_ref,
+        uniqueCode: row.unique_code,
+        amount: row.amount,
+      });
+    }
+
+    return res.json({ status: 'not_found' });
+  } catch (err) {
+    console.error('Resume lookup error:', err);
+    res.status(500).json({ error: 'Lookup failed' });
+  }
+});
+
 // POST /api/registrations/resend — public recovery: resend slip(s) by phone or email.
 // One adult may register multiple kids under the same contact, so we collect all
 // successful registrations. If there's just one we send the normal slip; if more,

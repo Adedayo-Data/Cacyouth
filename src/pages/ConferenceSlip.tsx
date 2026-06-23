@@ -2,6 +2,12 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 const API = import.meta.env.VITE_API_URL ?? '';
+const CONFERENCE_FEE = 3100;
+
+declare global {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  interface Window { FlutterwaveCheckout?: (config: any) => void; }
+}
 
 interface SlipState {
   name: string;
@@ -9,6 +15,16 @@ interface SlipState {
   state: string;
   phone?: string;
   dccZone?: string;
+}
+
+interface ResumeData {
+  name: string;
+  email: string;
+  phone: string;
+  state: string;
+  txRef: string;
+  uniqueCode: string;
+  amount: number;
 }
 
 const STATE_LABELS: Record<string, string> = {
@@ -41,11 +57,22 @@ const ConferenceSlip = () => {
   const [loadingSlip, setLoadingSlip] = useState(false);
   const [notFound, setNotFound] = useState(false);
 
-  const [resendInput, setResendInput] = useState('');
-  const [resendState, setResendState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  const [input, setInput] = useState('');
+  const [checkStatus, setCheckStatus] = useState<'idle' | 'checking' | 'resent' | 'pending' | 'not_found' | 'error'>('idle');
+  const [resumeData, setResumeData] = useState<ResumeData | null>(null);
+  const [scriptReady, setScriptReady] = useState(false);
+  const [paying, setPaying] = useState(false);
 
-  // After a Flutterwave payment, a full-page redirect brings us here with no
-  // React Router state — fall back to sessionStorage set by the callback.
+  // Load Flutterwave script for payment resumption
+  useEffect(() => {
+    if (window.FlutterwaveCheckout) { setScriptReady(true); return; }
+    const s = document.createElement('script');
+    s.src = 'https://checkout.flutterwave.com/v3.js';
+    s.async = true;
+    s.onload = () => setScriptReady(true);
+    document.head.appendChild(s);
+  }, []);
+
   const routerSlip = location.state as SlipState | null;
   const sessionSlip = (() => {
     try {
@@ -54,12 +81,10 @@ const ConferenceSlip = () => {
     } catch { return null; }
   })();
 
-  // Clear sessionStorage once we've read it so it doesn't linger
   useEffect(() => {
     if (sessionSlip) sessionStorage.removeItem('cac_slip');
   }, []);
 
-  // When arriving via email link (?code=...) fetch slip data from server
   useEffect(() => {
     const code = searchParams.get('code');
     if (!code || routerSlip || sessionSlip) return;
@@ -82,69 +107,177 @@ const ConferenceSlip = () => {
     );
   }
 
-  const handleResend = async (e: React.SyntheticEvent) => {
+  const handleCheck = async (e: React.SyntheticEvent) => {
     e.preventDefault();
-    const val = resendInput.trim();
+    const val = input.trim();
     if (!val) return;
-    setResendState('sending');
+    setCheckStatus('checking');
+    setResumeData(null);
     try {
       const isEmail = val.includes('@');
-      await fetch(`${API}/api/registrations/resend`, {
+      const res = await fetch(`${API}/api/registrations/resume`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(isEmail ? { email: val } : { phone: val }),
       });
-      setResendState('sent');
+      const data = await res.json();
+
+      if (data.status === 'paid') {
+        // Trigger resend in background then show confirmation
+        fetch(`${API}/api/registrations/resend`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(isEmail ? { email: val } : { phone: val }),
+        }).catch(() => {});
+        setCheckStatus('resent');
+      } else if (data.status === 'pending') {
+        setResumeData(data as ResumeData);
+        setCheckStatus('pending');
+      } else {
+        setCheckStatus('not_found');
+      }
     } catch {
-      setResendState('error');
+      setCheckStatus('error');
     }
+  };
+
+  const handleCompletePayment = () => {
+    if (!resumeData || !window.FlutterwaveCheckout) return;
+    setPaying(true);
+
+    window.FlutterwaveCheckout({
+      public_key: import.meta.env.VITE_FLW_PUBLIC_KEY,
+      tx_ref: resumeData.txRef,
+      amount: resumeData.amount ?? CONFERENCE_FEE,
+      currency: 'NGN',
+      payment_options: 'card,ussd,banktransfer',
+      customer: {
+        email: resumeData.email,
+        phone_number: resumeData.phone,
+        name: resumeData.name,
+      },
+      customizations: {
+        title: 'CAC Youth Conference',
+        description: '2026 Conference Registration Fee',
+        logo: `${window.location.origin}/favicon.png`,
+      },
+      callback: (response: { status: string; transaction_id: number; tx_ref: string }) => {
+        if (response.status === 'successful' || response.status === 'completed') {
+          sessionStorage.setItem('cac_slip', JSON.stringify({
+            name: resumeData.name,
+            state: resumeData.state,
+            phone: resumeData.phone,
+            uniqueCode: resumeData.uniqueCode,
+          }));
+          setTimeout(() => { window.location.href = '/conference/slip'; }, 2000);
+        }
+      },
+      onclose: () => {
+        setPaying(false);
+        if (sessionStorage.getItem('cac_slip')) {
+          window.location.href = '/conference/slip';
+        }
+      },
+    });
   };
 
   if (!slip) {
     return (
-      <div className="min-h-screen bg-black-light flex flex-col items-center justify-center gap-6 px-4">
-        <p className="text-white text-lg text-center">
-          {notFound
-            ? 'Registration not found. Please check the link in your email.'
-            : 'No registration data found.'}
-        </p>
+      <div className="min-h-screen bg-black-light flex flex-col items-center justify-center gap-6 px-4 py-12">
 
-        {resendState === 'sent' ? (
-          <p className="text-green-400 text-sm text-center max-w-xs">
-            If we have your details on file, the slip has been resent to your email.
-          </p>
-        ) : (
-          <form onSubmit={handleResend} className="w-full max-w-xs flex flex-col gap-3">
-            <p className="text-gray-400 text-sm text-center">
-              Paid but lost your slip? Enter the email or phone number used during registration.
-              If you registered multiple people, all their slips will arrive in one email.
-            </p>
-            <input
-              type="text"
-              value={resendInput}
-              onChange={e => setResendInput(e.target.value)}
-              placeholder="Email or phone number"
-              className="w-full rounded-xl px-4 py-3 text-white bg-white/5 border border-white/10 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
-            />
-            {resendState === 'error' && (
-              <p className="text-red-400 text-xs text-center">Something went wrong. Please try again.</p>
-            )}
+        {/* ── Unpaid / pending state ── */}
+        {checkStatus === 'pending' && resumeData ? (
+          <div className="w-full max-w-xs flex flex-col gap-4">
+            <div className="bg-amber-900/30 border border-amber-500/40 rounded-2xl p-6 text-center">
+              <p className="text-3xl mb-3">⚠️</p>
+              <h2 className="text-white font-bold text-lg mb-2">Payment Not Completed</h2>
+              <p className="text-gray-300 text-sm leading-relaxed">
+                Hi <span className="text-white font-semibold">{resumeData.name}</span>, your registration details are saved but your payment has not been made yet.
+              </p>
+              <p className="text-amber-300 text-sm mt-3 font-semibold">
+                Complete your payment to receive your registration slip.
+              </p>
+            </div>
             <button
-              type="submit"
-              disabled={resendState === 'sending'}
-              className="py-3 rounded-xl font-bold text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-60 transition-colors"
+              onClick={handleCompletePayment}
+              disabled={paying || !scriptReady}
+              className="w-full py-4 rounded-xl font-bold text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-60 transition-colors active:scale-95"
             >
-              {resendState === 'sending' ? 'Sending…' : 'Resend My Slip'}
+              {paying ? 'Opening Payment…' : `Pay ₦${(resumeData.amount ?? CONFERENCE_FEE).toLocaleString()} & Get My Slip`}
             </button>
-          </form>
-        )}
+            <button
+              onClick={() => { setCheckStatus('idle'); setResumeData(null); setInput(''); }}
+              className="text-gray-500 text-sm hover:text-gray-300 transition-colors text-center"
+            >
+              ← Try different details
+            </button>
+          </div>
 
-        <button
-          onClick={() => navigate('/conference')}
-          className="text-gray-500 text-sm hover:text-gray-300 transition-colors"
-        >
-          Go to Registration →
-        </button>
+        ) : checkStatus === 'resent' ? (
+          /* ── Slip resent ── */
+          <div className="w-full max-w-xs text-center flex flex-col gap-4">
+            <div className="bg-green-900/30 border border-green-500/40 rounded-2xl p-6">
+              <p className="text-3xl mb-3">✓</p>
+              <p className="text-green-400 font-semibold text-sm">
+                Your registration slip has been resent to your email address.
+              </p>
+              <p className="text-gray-400 text-xs mt-2">Check your inbox (and spam folder).</p>
+            </div>
+            <button
+              onClick={() => { setCheckStatus('idle'); setInput(''); }}
+              className="text-gray-500 text-sm hover:text-gray-300 transition-colors"
+            >
+              ← Try again
+            </button>
+          </div>
+
+        ) : (
+          /* ── Default lookup form ── */
+          <>
+            <div className="text-center max-w-xs">
+              <p className="text-white text-lg font-semibold mb-1">
+                {notFound ? 'Registration not found.' : 'Find your registration'}
+              </p>
+              <p className="text-gray-400 text-sm">
+                {notFound
+                  ? 'The link may be incorrect. Enter your details below to try again.'
+                  : 'Enter the email or phone number you used when registering.'}
+              </p>
+            </div>
+
+            <form onSubmit={handleCheck} className="w-full max-w-xs flex flex-col gap-3">
+              <input
+                type="text"
+                value={input}
+                onChange={e => { setInput(e.target.value); setCheckStatus('idle'); }}
+                placeholder="Email or phone number"
+                className="w-full rounded-xl px-4 py-3 text-white bg-white/5 border border-white/10 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+              />
+              {checkStatus === 'not_found' && (
+                <p className="text-amber-400 text-xs text-center">
+                  No registration found with those details. Double-check and try again, or register below.
+                </p>
+              )}
+              {checkStatus === 'error' && (
+                <p className="text-red-400 text-xs text-center">Something went wrong. Please try again.</p>
+              )}
+              <button
+                type="submit"
+                disabled={checkStatus === 'checking' || !input.trim()}
+                className="py-3 rounded-xl font-bold text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-60 transition-colors"
+              >
+                {checkStatus === 'checking' ? 'Checking…' : 'Find My Registration'}
+              </button>
+            </form>
+
+            <button
+              onClick={() => navigate('/conference')}
+              className="text-gray-500 text-sm hover:text-gray-300 transition-colors"
+            >
+              {checkStatus === 'not_found' ? 'Register now →' : 'Go to Registration →'}
+            </button>
+          </>
+        )}
       </div>
     );
   }
@@ -172,19 +305,16 @@ const ConferenceSlip = () => {
             size: A4;
           }
 
-          /* Force background colours to print (fixes Chrome stripping them) */
           * {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
             color-adjust: exact !important;
           }
 
-          /* White page, no dark background */
           html, body {
             background: white !important;
           }
 
-          /* Remove the dark navy from the page wrapper (fixes Safari) */
           .slip-page {
             background: white !important;
             min-height: auto !important;
@@ -192,18 +322,15 @@ const ConferenceSlip = () => {
             padding: 0 !important;
           }
 
-          /* Hide EVERYTHING with the visibility trick */
           body * {
             visibility: hidden !important;
           }
 
-          /* Then reveal only the slip card and everything inside it */
           #slip-card,
           #slip-card * {
             visibility: visible !important;
           }
 
-          /* Position the card at the top so it fills the printed page */
           #slip-card {
             position: fixed;
             top: 0;
@@ -221,10 +348,8 @@ const ConferenceSlip = () => {
 
       <div className="slip-page">
 
-        {/* ── Registration Slip ── */}
         <div id="slip-card" className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
 
-          {/* Header band */}
           <div className="bg-purple-700 px-6 py-5 text-center">
             <img src="/favicon.png" alt="CACYOF Logo" className="h-14 w-14 mx-auto mb-2 object-contain" />
             <h1 className="text-white font-black text-base sm:text-lg tracking-wide uppercase">
@@ -235,7 +360,6 @@ const ConferenceSlip = () => {
             </p>
           </div>
 
-          {/* Body */}
           <div className="px-6 py-7">
 
             <div className="text-center mb-6">
@@ -245,14 +369,12 @@ const ConferenceSlip = () => {
               <div className="mt-2 h-0.5 w-16 bg-purple-200 mx-auto rounded-full" />
             </div>
 
-            {/* Registrant details */}
             <div className="mb-7">
               <Row label="Full Name" value={slip.name} />
               <Row label="State"     value={resolveState(slip)} />
               <Row label="Phone"     value={slip.phone} />
             </div>
 
-            {/* Admission code */}
             <div className="bg-gray-50 border-2 border-dashed border-purple-200 rounded-2xl py-8 px-4 mb-6 text-center">
               <p className="text-gray-400 text-xs uppercase tracking-widest font-semibold mb-3">
                 Registration ID
@@ -270,13 +392,11 @@ const ConferenceSlip = () => {
             </p>
           </div>
 
-          {/* Footer */}
           <div className="bg-gray-50 px-6 py-3 text-center">
             <p className="text-gray-400 text-xs">mryc.online · Medaiyese Regional Youth Choir</p>
           </div>
         </div>
 
-        {/* Action buttons — below the slip, never printed */}
         <div className="flex flex-col sm:flex-row gap-3 mt-6 w-full max-w-md">
           <button
             onClick={() => window.print()}
