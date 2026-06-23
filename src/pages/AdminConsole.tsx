@@ -527,7 +527,7 @@ const AdminConsole = () => {
           </div>
         </div>
 
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+        <main className="w-full px-4 sm:px-6 py-6 sm:py-8 space-y-6">
 
           {/* Sync result banner — shown after syncing payments */}
           {syncResult && (
@@ -631,56 +631,57 @@ const AdminConsole = () => {
                 <div className="text-center py-20 text-gray-400">No registrations found.</div>
               ) : (
                 <>
-                  <div className="hidden md:block overflow-x-auto rounded-xl border border-white/10">
-                    <table className="w-full text-sm">
+                  <div className="hidden md:block rounded-xl border border-white/10 overflow-hidden">
+                    <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
                       <thead className="bg-white/5">
                         <tr>
                           {['#', 'Name', 'State', 'Code', 'Phone', 'Age', 'Date', 'Payment', 'Status', 'Action'].map(h => (
-                            <th key={h} className="px-4 py-3 text-left text-gray-400 font-semibold uppercase text-xs tracking-wider whitespace-nowrap">{h}</th>
+                            <th key={h} className="px-3 py-2.5 text-left text-gray-400 font-semibold uppercase text-xs tracking-wider whitespace-nowrap">{h}</th>
                           ))}
                         </tr>
                       </thead>
                       <tbody>
                         {filtered.map((reg, i) => (
                           <tr key={reg.id} className="border-t border-white/5 hover:bg-white/5 transition-colors">
-                            <td className="px-4 py-3 text-gray-500 text-xs">{i + 1}</td>
-                            <td className="px-4 py-3">
-                              <p className="font-semibold text-white">{reg.name}</p>
-                              <p className="text-gray-400 text-xs">{reg.email}</p>
+                            <td className="px-3 py-2.5 text-gray-500 text-xs w-8">{i + 1}</td>
+                            <td className="px-3 py-2.5 max-w-[180px]">
+                              <p className="font-semibold text-white text-xs truncate">{reg.name}</p>
+                              <p className="text-gray-500 text-xs truncate">{reg.email}</p>
                             </td>
-                            <td className="px-4 py-3">
-                              <span className="px-2 py-1 rounded-md bg-purple-950/60 text-purple-300 text-xs font-bold">{STATE_LABELS[reg.state] ?? reg.state}</span>
+                            <td className="px-3 py-2.5 whitespace-nowrap">
+                              <span className="px-2 py-0.5 rounded-md bg-purple-950/60 text-purple-300 text-xs font-bold">{STATE_LABELS[reg.state] ?? reg.state}</span>
                             </td>
-                            <td className="px-4 py-3 font-mono font-bold text-amber-400 tracking-widest text-sm">{reg.uniqueCode}</td>
-                            <td className="px-4 py-3 text-gray-300 text-sm">{reg.phone}</td>
-                            <td className="px-4 py-3 whitespace-nowrap">
+                            <td className="px-3 py-2.5 font-mono font-bold text-amber-400 tracking-wide text-xs whitespace-nowrap">{reg.uniqueCode}</td>
+                            <td className="px-3 py-2.5 text-gray-300 text-xs whitespace-nowrap">{reg.phone}</td>
+                            <td className="px-3 py-2.5 whitespace-nowrap">
                               {(() => {
                                 const age = calcAge(reg.dob);
                                 const cat = ageCategory(age);
                                 return (
-                                  <div className="flex flex-col gap-0.5">
+                                  <div className="flex flex-col gap-0">
                                     <span className="text-white text-xs font-bold">{age !== null ? `${age} yrs` : '—'}</span>
                                     <span className={`text-xs font-semibold ${cat.cls}`}>{cat.label}</span>
                                   </div>
                                 );
                               })()}
                             </td>
-                            <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">{new Date(reg.registeredAt).toLocaleDateString('en-NG')}</td>
-                            <td className="px-4 py-3">
-                              <span className={`px-2 py-1 rounded-md text-xs font-semibold ${isPaid(reg) ? 'bg-emerald-900/40 text-emerald-400' : 'bg-yellow-900/30 text-yellow-500'}`}>
+                            <td className="px-3 py-2.5 text-gray-400 text-xs whitespace-nowrap">{new Date(reg.registeredAt).toLocaleDateString('en-NG')}</td>
+                            <td className="px-3 py-2.5 whitespace-nowrap">
+                              <span className={`px-2 py-0.5 rounded-md text-xs font-semibold ${isPaid(reg) ? 'bg-emerald-900/40 text-emerald-400' : 'bg-yellow-900/30 text-yellow-500'}`}>
                                 {isPaid(reg) ? '✓ Paid' : 'Draft'}
                               </span>
                             </td>
-                            <td className="px-4 py-3">
-                              <span className={`px-2 py-1 rounded-md text-xs font-semibold ${reg.verified ? 'bg-green-900/40 text-green-400' : 'bg-white/5 text-gray-400'}`}>
+                            <td className="px-3 py-2.5 whitespace-nowrap">
+                              <span className={`px-2 py-0.5 rounded-md text-xs font-semibold ${reg.verified ? 'bg-green-900/40 text-green-400' : 'bg-white/5 text-gray-400'}`}>
                                 {reg.verified ? '✓ Verified' : 'Pending'}
                               </span>
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="px-3 py-2.5 whitespace-nowrap">
                               <button
                                 onClick={() => handleVerify(reg)}
                                 disabled={verifying === reg.id}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 ${reg.verified ? 'bg-red-900/40 hover:bg-red-900/70 text-red-300' : 'bg-green-900/40 hover:bg-green-900/70 text-green-300'}`}
+                                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 ${reg.verified ? 'bg-red-900/40 hover:bg-red-900/70 text-red-300' : 'bg-green-900/40 hover:bg-green-900/70 text-green-300'}`}
                               >
                                 {verifying === reg.id ? '…' : reg.verified ? 'Unverify' : 'Verify'}
                               </button>
@@ -689,6 +690,7 @@ const AdminConsole = () => {
                         ))}
                       </tbody>
                     </table>
+                  </div>
                   </div>
 
                   <div className="md:hidden space-y-3">
