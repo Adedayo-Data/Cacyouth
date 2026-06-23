@@ -11,6 +11,8 @@ import Partnership from "./pages/Partnership.tsx";
 import ShowcaseBusiness from "./pages/ShowcaseBusiness.tsx";
 import Conference from "./pages/Conference.tsx";
 import ConferenceSlip from "./pages/ConferenceSlip.tsx";
+import VendorSlip from "./pages/VendorSlip.tsx";
+import VendorStaffPortal from "./pages/VendorStaffPortal.tsx";
 import PaymentReturn from "./pages/PaymentReturn.tsx";
 import AdminConsole from "./pages/AdminConsole.tsx";
 import StaffPortal from "./pages/StaffPortal.tsx";
@@ -25,6 +27,7 @@ const App = () => {
         {/* Admin & Staff — standalone, no navbar/footer */}
         <Route path="/admin" element={<AdminConsole />} />
         <Route path="/staff" element={<StaffPortal />} />
+        <Route path="/vendor-staff" element={<VendorStaffPortal />} />
         <Route path="/payment/return" element={<PaymentReturn />} />
 
         <Route element={<PageLayout />}>
@@ -37,6 +40,7 @@ const App = () => {
           <Route path="/showcase" element={<ShowcaseBusiness />} />
           <Route path="/conference" element={<Conference />} />
           <Route path="/conference/slip" element={<ConferenceSlip />} />
+          <Route path="/vendor/slip" element={<VendorSlip />} />
         </Route>
       </Routes>
     </DonateProvider>

@@ -8,6 +8,7 @@ const pool = require('./db');
 const registrationsRouter = require('./routes/registrations');
 const staffRouter = require('./routes/staff');
 const paymentRouter = require('./routes/payment');
+const vendorsRouter = require('./routes/vendors');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -24,6 +25,7 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/registrations', registrationsRouter);
 app.use('/api/staff', staffRouter);
 app.use('/api/payment', paymentRouter);
+app.use('/api/vendors', vendorsRouter);
 
 // ── Serve the Vite frontend build ─────────────────────────────────────────────
 const distPath = path.join(__dirname, '../../dist');

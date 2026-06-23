@@ -40,6 +40,21 @@ function ageCategory(age: number | null): { label: string; cls: string } {
   return           { label: 'Adult',             cls: 'text-orange-400' };
 }
 
+interface VendorRecord {
+  id: string;
+  name: string;
+  businessName: string;
+  category: string;
+  phone?: string;
+  email?: string;
+  uniqueCode: string;
+  amount: number;
+  paymentStatus: string;
+  verified: boolean;
+  verifiedAt?: string;
+  registeredAt: string;
+}
+
 interface StaffMember {
   id: string;
   name: string;
@@ -49,7 +64,7 @@ interface StaffMember {
   createdAt: string;
 }
 
-type TabType = 'registrations' | 'verify' | 'staff' | 'send-slip';
+type TabType = 'registrations' | 'verify' | 'staff' | 'send-slip' | 'vendors';
 type StateFilter = 'ALL' | 'FCT' | 'NIGER' | 'KADUNA' | 'OTHER';
 
 const STATE_LABELS: Record<string, string> = { FCT: 'FCT', NIGER: 'Niger', KADUNA: 'Kaduna', OTHER: 'Other States' };
@@ -141,6 +156,12 @@ const AdminConsole = () => {
   const [bulkProgress, setBulkProgress] = useState<{ sent: number; failed: number; total: number; pct: number; done: boolean } | null>(null);
   const [slipMessage, setSlipMessage] = useState('');
 
+  // Vendor tab state
+  const [vendors, setVendors]             = useState<VendorRecord[]>([]);
+  const [loadingVendors, setLoadingVendors] = useState(false);
+  const [vendorSearch, setVendorSearch]   = useState('');
+  const [deletingVendor, setDeletingVendor] = useState<string | null>(null);
+
   // Custom confirm modal
   const [confirmModal, setConfirmModal] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
@@ -195,6 +216,17 @@ const AdminConsole = () => {
     }
   };
 
+  /* ── Fetch vendors ── */
+  const fetchVendors = async () => {
+    setLoadingVendors(true);
+    try {
+      const res = await fetch(`${API}/api/vendors`, { headers: adminHeaders });
+      if (!res.ok) throw new Error('Fetch failed');
+      setVendors(await res.json());
+    } catch (err) { console.error(err); }
+    finally { setLoadingVendors(false); }
+  };
+
   /* ── Fetch staff ── */
   const fetchStaff = async () => {
     setLoadingStaff(true);
@@ -207,7 +239,7 @@ const AdminConsole = () => {
   };
 
   useEffect(() => {
-    if (authenticated) { fetchRegistrations(); fetchStaff(); }
+    if (authenticated) { fetchRegistrations(); fetchStaff(); fetchVendors(); }
   }, [authenticated]);
 
   /* ── Verify / unverify ── */
@@ -333,6 +365,17 @@ const AdminConsole = () => {
       message: `Send registration slips to all ${paidRegistrations.length} paid registrant${paidRegistrations.length !== 1 ? 's' : ''}? Each person will receive their slip at their registered email address.`,
       onConfirm: () => { setConfirmModal(null); doBulkSend(); },
     });
+  };
+
+  /* ── Delete vendor ── */
+  const handleDeleteVendor = async (id: string) => {
+    if (!confirm('Remove this vendor registration?')) return;
+    setDeletingVendor(id);
+    try {
+      await fetch(`${API}/api/vendors/${id}`, { method: 'DELETE', headers: adminHeaders });
+      setVendors(prev => prev.filter(v => v.id !== id));
+    } catch (err) { console.error(err); }
+    finally { setDeletingVendor(null); }
   };
 
   /* ── Print ── */
@@ -510,7 +553,7 @@ const AdminConsole = () => {
 
         <div className="border-b border-white/10 px-4 sm:px-6">
           <div className="flex gap-0 max-w-7xl mx-auto">
-            {([['registrations', 'Registrations'], ['verify', 'Verify'], ['staff', 'Staff Accounts'], ['send-slip', 'Send Slip']] as [TabType, string][]).map(([tab, label]) => (
+            {([['registrations', 'Registrations'], ['verify', 'Verify'], ['vendors', 'Vendors'], ['staff', 'Staff Accounts'], ['send-slip', 'Send Slip']] as [TabType, string][]).map(([tab, label]) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -521,6 +564,9 @@ const AdminConsole = () => {
                 {label}
                 {tab === 'staff' && staff.length > 0 && (
                   <span className="ml-2 px-1.5 py-0.5 bg-purple-900/60 text-purple-300 text-xs rounded-md">{staff.length}</span>
+                )}
+                {tab === 'vendors' && vendors.length > 0 && (
+                  <span className="ml-2 px-1.5 py-0.5 bg-amber-900/60 text-amber-300 text-xs rounded-md">{vendors.length}</span>
                 )}
               </button>
             ))}
@@ -1080,6 +1126,148 @@ const AdminConsole = () => {
 
             </div>
           )}
+
+          {/* ════ VENDORS TAB ════ */}
+          {activeTab === 'vendors' && (() => {
+            const paidVendors  = vendors.filter(v => v.paymentStatus === 'success' || v.paymentStatus === 'successful');
+            const draftVendors = vendors.filter(v => v.paymentStatus !== 'success' && v.paymentStatus !== 'successful');
+            const q = vendorSearch.trim().toLowerCase();
+            const filteredVendors = vendors.filter(v =>
+              !q ||
+              v.name.toLowerCase().includes(q) ||
+              v.businessName.toLowerCase().includes(q) ||
+              v.category.toLowerCase().includes(q) ||
+              v.uniqueCode.toLowerCase().includes(q) ||
+              (v.phone ?? '').includes(q)
+            );
+
+            return (
+              <div className="space-y-6">
+                {/* Stats */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {[
+                    { label: 'Total',    value: vendors.length,           cls: 'text-white' },
+                    { label: 'Paid',     value: paidVendors.length,       cls: 'text-amber-400' },
+                    { label: 'Drafts',   value: draftVendors.length,      cls: 'text-gray-500' },
+                    { label: 'Verified', value: paidVendors.filter(v => v.verified).length, cls: 'text-emerald-400' },
+                  ].map(s => (
+                    <div key={s.label} className="bg-white/5 border border-white/10 rounded-xl p-4 text-center">
+                      <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">{s.label}</p>
+                      <p className={`text-3xl font-black ${s.cls}`}>{s.value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Search */}
+                <input
+                  type="search"
+                  value={vendorSearch}
+                  onChange={e => setVendorSearch(e.target.value)}
+                  placeholder="Search by name, business, category, code or phone…"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all text-sm"
+                />
+
+                <p className="text-gray-400 text-sm">
+                  Showing <span className="text-white font-semibold">{filteredVendors.length}</span> vendor{filteredVendors.length !== 1 ? 's' : ''}
+                </p>
+
+                {loadingVendors ? (
+                  <div className="text-center py-20 text-gray-400">Loading vendors…</div>
+                ) : filteredVendors.length === 0 ? (
+                  <div className="bg-white/5 border border-white/10 rounded-xl p-12 text-center text-gray-400 text-sm">
+                    No vendor registrations yet.
+                  </div>
+                ) : (
+                  <>
+                    {/* Desktop table */}
+                    <div className="hidden lg:block overflow-x-auto rounded-xl border border-white/10">
+                      <table className="w-full text-sm">
+                        <thead className="bg-white/5">
+                          <tr>
+                            {['#', 'Name', 'Business', 'Category', 'Phone', 'Amount', 'Code', 'Status', 'Verified', ''].map(h => (
+                              <th key={h} className="px-3 py-3 text-left text-gray-400 font-semibold uppercase text-xs tracking-wider">{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredVendors.map((v, i) => {
+                            const paid = v.paymentStatus === 'success' || v.paymentStatus === 'successful';
+                            return (
+                              <tr key={v.id} className="border-t border-white/5 hover:bg-white/5 transition-colors">
+                                <td className="px-3 py-3 text-gray-500 text-xs">{i + 1}</td>
+                                <td className="px-3 py-3 font-semibold text-white text-xs">{v.name}</td>
+                                <td className="px-3 py-3 text-gray-300 text-xs">{v.businessName}</td>
+                                <td className="px-3 py-3 text-gray-400 text-xs max-w-[140px] truncate">{v.category}</td>
+                                <td className="px-3 py-3 text-gray-400 text-xs">{v.phone ?? '—'}</td>
+                                <td className="px-3 py-3 text-amber-400 font-bold text-xs">₦{v.amount.toLocaleString()}</td>
+                                <td className="px-3 py-3 font-mono text-amber-300 text-xs tracking-wider">{v.uniqueCode}</td>
+                                <td className="px-3 py-3">
+                                  <span className={`text-xs font-bold ${paid ? 'text-green-400' : 'text-gray-500'}`}>
+                                    {paid ? 'Paid' : 'Pending'}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-3">
+                                  <span className={`text-xs font-bold ${v.verified ? 'text-emerald-400' : 'text-gray-600'}`}>
+                                    {v.verified ? '✓ Yes' : '—'}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-3">
+                                  <button
+                                    onClick={() => handleDeleteVendor(v.id)}
+                                    disabled={deletingVendor === v.id}
+                                    className="px-2 py-1 bg-red-900/40 hover:bg-red-900/70 text-red-300 rounded text-xs font-semibold transition-colors disabled:opacity-50"
+                                  >
+                                    {deletingVendor === v.id ? '…' : 'Del'}
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Mobile cards */}
+                    <div className="lg:hidden space-y-3">
+                      {filteredVendors.map(v => {
+                        const paid = v.paymentStatus === 'success' || v.paymentStatus === 'successful';
+                        return (
+                          <div key={v.id} className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-2">
+                            <div className="flex justify-between items-start gap-2">
+                              <div>
+                                <p className="font-bold text-white text-sm">{v.name}</p>
+                                <p className="text-gray-400 text-xs">{v.businessName}</p>
+                              </div>
+                              <span className={`text-xs font-bold px-2 py-1 rounded-md ${paid ? 'bg-green-900/40 text-green-400' : 'bg-white/5 text-gray-500'}`}>
+                                {paid ? 'Paid' : 'Pending'}
+                              </span>
+                            </div>
+                            <p className="text-gray-400 text-xs">{v.category}</p>
+                            <div className="flex items-center justify-between">
+                              <span className="font-mono text-amber-300 text-xs tracking-wider">{v.uniqueCode}</span>
+                              <span className="text-amber-400 font-bold text-xs">₦{v.amount.toLocaleString()}</span>
+                            </div>
+                            <div className="flex items-center justify-between pt-1">
+                              <span className={`text-xs font-semibold ${v.verified ? 'text-emerald-400' : 'text-gray-600'}`}>
+                                {v.verified ? '✓ Verified' : 'Not verified'}
+                              </span>
+                              <button
+                                onClick={() => handleDeleteVendor(v.id)}
+                                disabled={deletingVendor === v.id}
+                                className="px-3 py-1 bg-red-900/40 hover:bg-red-900/70 text-red-300 rounded text-xs font-semibold transition-colors disabled:opacity-50"
+                              >
+                                {deletingVendor === v.id ? '…' : 'Remove'}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })()}
 
         </main>
       </div>

@@ -59,3 +59,26 @@ END $$;
 CREATE UNIQUE INDEX IF NOT EXISTS registrations_tx_ref_unique
   ON registrations (tx_ref)
   WHERE tx_ref IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS vendors (
+  id            SERIAL PRIMARY KEY,
+  first_name    VARCHAR(100)  NOT NULL,
+  last_name     VARCHAR(100)  NOT NULL,
+  name          VARCHAR(300)  NOT NULL,
+  business_name VARCHAR(200)  NOT NULL,
+  phone         VARCHAR(30),
+  email         VARCHAR(200),
+  category      VARCHAR(200)  NOT NULL,
+  unique_code   VARCHAR(60)   UNIQUE NOT NULL,
+  payment_ref   VARCHAR(200),
+  tx_ref        VARCHAR(200),
+  amount        INTEGER       DEFAULT 0,
+  payment_status VARCHAR(20)  DEFAULT 'pending',
+  verified      BOOLEAN       DEFAULT FALSE,
+  verified_at   TIMESTAMPTZ,
+  registered_at TIMESTAMPTZ   DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS vendors_tx_ref_unique
+  ON vendors (tx_ref)
+  WHERE tx_ref IS NOT NULL;
