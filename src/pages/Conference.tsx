@@ -618,9 +618,6 @@ const Conference = () => {
           <div className="bg-purple-900/30 border border-purple-500/20 rounded-xl px-4 py-3 text-center">
             <p className="text-purple-300 text-xs uppercase tracking-widest mb-1 font-semibold">Space Fee</p>
             <p className="text-white text-3xl font-black">₦{vendorTotal.toLocaleString()}</p>
-            <p className="text-purple-400 text-xs mt-1">
-              ₦{selectedCat?.fee.toLocaleString()} space + ₦{PLATFORM_FEE} platform fee
-            </p>
           </div>
         )}
       </div>
@@ -705,7 +702,7 @@ const Conference = () => {
             {isParticipant ? `₦${CONFERENCE_FEE.toLocaleString()}` : `₦${(15000 + PLATFORM_FEE).toLocaleString()}`}
           </p>
           {!isParticipant && (
-            <p className="text-purple-400 text-xs mt-1">Varies by category · includes ₦{PLATFORM_FEE} platform fee</p>
+            <p className="text-purple-400 text-xs mt-1">Varies by category</p>
           )}
         </div>
 
