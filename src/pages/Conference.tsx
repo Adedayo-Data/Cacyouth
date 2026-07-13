@@ -19,7 +19,7 @@ const ZONES_BY_STATE: Record<Exclude<SelectedState, 'OTHER'>, string[]> = {
   FCT: [
     'FCC DCC', 'ADCC DCC', 'NYANYA DCC', 'GWAGWALADA DCC', 'KUJE DCC',
     'L/WATER DCC', 'KUBWA DCC', 'BWARI ZONE', 'LUGBE DCC', 'PRINCE OF PEACE ZONE',
-    'KWALI ZONE', 'MERCY ZONE', 'MARABA ZONE', 'MAPAPE ZONE', 'OKEIYIN ZONE',
+    'KWALI ZONE', 'MERCY ZONE', 'MARARABA ZONE', 'MAPAPE ZONE', 'OKEIYIN ZONE',
     'CHRIST THE KING DCC', 'KARU DCC', 'MIRACLE DCC', 'DUTSE DCC', 'GLORY ZONE',
     'ALL SAINT DCC', 'PRAISE DCC DCC', 'DAGIRI ZONE', 'TRUTH AND POWER ZONE',
     'ADO ZONE', 'FULFILMENT ZONE', 'LIFE ZONE', 'PASALI ZONE',
@@ -70,21 +70,27 @@ const VENDOR_CATEGORIES: { group: string; items: VendorCategory[] }[] = [
   {
     group: 'General Vendors',
     items: [
-      { name: 'Food and Beverages',                    fee: 50000 },
-      { name: 'Snacks, Pastries & Small Chops',        fee: 50000 },
-      { name: 'Drinks, Juice, Coffee & Smoothies',     fee: 50000 },
-      { name: 'Fashion and Apparel',                   fee: 25000 },
-      { name: 'Beauty and Cosmetics',                  fee: 25000 },
-      { name: 'Electronics and Gadgets',               fee: 25000 },
-      { name: 'Stationery and Books',                  fee: 25000 },
+      { name: 'Food and Beverages',                    fee: 25000 },
+      { name: 'Snacks, Pastries & Small Chops',        fee: 25000 },
+      { name: 'Drinks, Juice, Coffee & Smoothies',     fee: 25000 },
+      { name: 'Fashion and Apparel',                   fee: 15000 },
+      { name: 'Beauty and Cosmetics',                  fee: 15000 },
+      { name: 'Electronics and Gadgets',               fee: 15000 },
+      { name: 'Stationery and Books',                  fee: 15000 },
     ],
   },
   {
     group: 'Tech & Media',
     items: [
-      { name: 'Photographers & Videographers',         fee: 25000 },
-      { name: 'Phone Charging Stations & Power Bank',  fee: 15000 },
+      { name: 'Photographers & Videographers',         fee: 15000 },
+      { name: 'Phone Charging Stations & Power Bank',  fee: 10000 },
       { name: 'Live Streaming Crew',                   fee: 0, mryOnly: true },
+    ],
+  },
+  {
+    group: 'Test',
+    items: [
+      { name: 'Test',                                  fee: 500 },
     ],
   },
 ];
