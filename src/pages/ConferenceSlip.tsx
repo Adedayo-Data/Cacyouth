@@ -70,16 +70,16 @@ const ConferenceSlip = () => {
   }, []);
 
   const routerSlip = location.state as SlipState | null;
-  const sessionSlip = (() => {
+  // Captured once at mount so a later re-render (e.g. the Flutterwave script's
+  // onload firing setScriptReady) can't re-read sessionStorage after it's been
+  // cleared and wipe out the slip that was already showing.
+  const [sessionSlip] = useState<SlipState | null>(() => {
     try {
       const raw = sessionStorage.getItem('cac_slip');
+      if (raw) sessionStorage.removeItem('cac_slip');
       return raw ? (JSON.parse(raw) as SlipState) : null;
     } catch { return null; }
-  })();
-
-  useEffect(() => {
-    if (sessionSlip) sessionStorage.removeItem('cac_slip');
-  }, []);
+  });
 
   useEffect(() => {
     const code = searchParams.get('code');

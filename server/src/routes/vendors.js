@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
+const { resendAllSlips } = require('../utils/resend');
 
 const toVendor = (row) => ({
   id: String(row.id),
@@ -54,6 +55,30 @@ router.post('/', async (req, res) => {
       if (existing.rows.length > 0) return res.status(200).json(toVendor(existing.rows[0]));
     }
 
+    // De-dupe abandoned attempts: if this same person (same phone + name) already
+    // has an unpaid pending vendor registration from an earlier attempt, update
+    // that row in place rather than inserting a new one. Matched on phone+name
+    // (not email) since one email may cover several vendors, and the same email
+    // may also belong to a conference participant in a different table. Only
+    // ever touches 'pending' rows — a successful (paid) vendor is never overwritten.
+    if (phone && name) {
+      const dup = await pool.query(
+        `SELECT id FROM vendors WHERE phone = $1 AND LOWER(name) = LOWER($2) AND payment_status = 'pending' LIMIT 1`,
+        [phone, name]
+      );
+      if (dup.rows.length > 0) {
+        const updated = await pool.query(
+          `UPDATE vendors SET
+             first_name = $1, last_name = $2, name = $3, business_name = $4,
+             phone = $5, email = $6, category = $7, unique_code = $8, tx_ref = $9, amount = $10
+           WHERE id = $11
+           RETURNING *`,
+          [firstName, lastName, name, businessName, phone, email || null, category, uniqueCode, txRef || null, amount || 0, dup.rows[0].id]
+        );
+        return res.status(200).json(toVendor(updated.rows[0]));
+      }
+    }
+
     const result = await pool.query(
       `INSERT INTO vendors
          (first_name, last_name, name, business_name, phone, email, category, unique_code, tx_ref, amount, payment_status)
@@ -105,6 +130,25 @@ router.post('/resume', async (req, res) => {
   } catch (err) {
     console.error('Vendor resume error:', err);
     res.status(500).json({ error: 'Lookup failed' });
+  }
+});
+
+// POST /api/vendors/resend — public recovery: resend slip(s) by phone or email.
+// The same email may also belong to a conference participant in the registrations
+// table — resendAllSlips() covers both and sends one combined email so nothing
+// is missed regardless of which "already registered" link was used.
+router.post('/resend', async (req, res) => {
+  const { email, phone } = req.body || {};
+  if (!email && !phone) return res.status(400).json({ error: 'Provide email or phone' });
+
+  try {
+    resendAllSlips({ email, phone }).catch(err => console.error('Vendor resend failed:', err.message));
+
+    // Always respond generically — don't reveal whether any record was found
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Vendor resend error:', err);
+    res.status(500).json({ error: 'Failed to resend slip' });
   }
 });
 

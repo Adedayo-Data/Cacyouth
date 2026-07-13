@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
-const { sendSlipEmail, sendSummaryEmail } = require('../utils/email');
+const { sendSlipEmail } = require('../utils/email');
+const { resendAllSlips } = require('../utils/resend');
 
 const toReg = (row) => ({
   id: String(row.id),
@@ -58,6 +59,37 @@ router.post('/', async (req, res) => {
       );
       if (existing.rows.length > 0) {
         return res.status(200).json(toReg(existing.rows[0]));
+      }
+    }
+
+    // De-dupe abandoned attempts: if this same person (same phone + name) already
+    // has an unpaid pending registration from an earlier attempt (e.g. they tried
+    // to pay, it failed, and they filled the form again instead of using "already
+    // registered"), update that row in place rather than inserting a new one.
+    // Matched on phone+name (not email) because one email may legitimately cover
+    // several different registrants. Only ever touches 'pending' rows — a
+    // successful (paid) registration is never overwritten.
+    if (phone && name) {
+      const dup = await pool.query(
+        `SELECT id FROM registrations WHERE phone = $1 AND LOWER(name) = LOWER($2) AND payment_status = 'pending' LIMIT 1`,
+        [phone, name]
+      );
+      if (dup.rows.length > 0) {
+        const updated = await pool.query(
+          `UPDATE registrations SET
+             first_name = $1, middle_name = $2, last_name = $3, name = $4, dob = $5,
+             dcc_zone = $6, assembly_name = $7, denomination = $8, gender = $9,
+             phone = $10, email = $11, state = $12, status = $13, occupation = $14,
+             qualification = $15, unique_code = $16, tx_ref = $17, amount = $18
+           WHERE id = $19
+           RETURNING *`,
+          [
+            firstName, middleName || null, lastName, name, dob, dccZone, assemblyName || null,
+            denomination || null, gender, phone, email, state, status, occupation, qualification,
+            uniqueCode, txRef || null, amount || 3100, dup.rows[0].id,
+          ]
+        );
+        return res.status(200).json(toReg(updated.rows[0]));
       }
     }
 
@@ -132,36 +164,15 @@ router.post('/resume', async (req, res) => {
 });
 
 // POST /api/registrations/resend — public recovery: resend slip(s) by phone or email.
-// One adult may register multiple kids under the same contact, so we collect all
-// successful registrations. If there's just one we send the normal slip; if more,
-// we send a single consolidated summary so the inbox isn't flooded.
+// One contact may cover multiple registrants, and the same email may also belong
+// to a vendor registration — resendAllSlips() covers both registrations and
+// vendors and sends one combined email so nothing is missed.
 router.post('/resend', async (req, res) => {
   const { email, phone } = req.body || {};
   if (!email && !phone) return res.status(400).json({ error: 'Provide email or phone' });
 
   try {
-    const result = email
-      ? await pool.query(
-          `SELECT * FROM registrations WHERE LOWER(email) = LOWER($1) AND payment_status = 'success' ORDER BY registered_at ASC`,
-          [email.trim()]
-        )
-      : await pool.query(
-          `SELECT * FROM registrations WHERE phone = $1 AND payment_status = 'success' ORDER BY registered_at ASC`,
-          [phone.trim()]
-        );
-
-    if (result.rows.length > 0) {
-      const regs = result.rows.map(toReg);
-      const toEmail = regs[0].email;
-
-      if (toEmail) {
-        if (regs.length === 1) {
-          sendSlipEmail(regs[0]).catch(err => console.error('Resend failed:', err.message));
-        } else {
-          sendSummaryEmail(regs, toEmail).catch(err => console.error('Summary resend failed:', err.message));
-        }
-      }
-    }
+    resendAllSlips({ email, phone }).catch(err => console.error('Resend failed:', err.message));
 
     // Always respond generically — don't reveal whether any record was found
     res.json({ success: true });

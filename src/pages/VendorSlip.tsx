@@ -43,7 +43,7 @@ const VendorSlip = () => {
   const [notFound, setNotFound]         = useState(false);
 
   const [input, setInput]         = useState('');
-  const [checkStatus, setCheckStatus] = useState<'idle'|'checking'|'pending'|'not_found'|'error'>('idle');
+  const [checkStatus, setCheckStatus] = useState<'idle'|'checking'|'resent'|'pending'|'not_found'|'error'>('idle');
   const [resumeData, setResumeData]   = useState<ResumeData | null>(null);
   const [scriptReady, setScriptReady] = useState(false);
   const [paying, setPaying]           = useState(false);
@@ -58,16 +58,16 @@ const VendorSlip = () => {
   }, []);
 
   const routerSlip = location.state as VendorSlipState | null;
-  const sessionSlip = (() => {
+  // Captured once at mount so a later re-render (e.g. the Flutterwave script's
+  // onload firing setScriptReady) can't re-read sessionStorage after it's been
+  // cleared and wipe out the slip that was already showing.
+  const [sessionSlip] = useState<VendorSlipState | null>(() => {
     try {
       const raw = sessionStorage.getItem('cac_vendor_slip');
+      if (raw) sessionStorage.removeItem('cac_vendor_slip');
       return raw ? (JSON.parse(raw) as VendorSlipState) : null;
     } catch { return null; }
-  })();
-
-  useEffect(() => {
-    if (sessionSlip) sessionStorage.removeItem('cac_vendor_slip');
-  }, []);
+  });
 
   useEffect(() => {
     const code = searchParams.get('code');
@@ -107,7 +107,13 @@ const VendorSlip = () => {
       const data = await res.json();
 
       if (data.status === 'paid') {
-        setCheckStatus('not_found'); // paid but no code lookup yet — prompt them to use code
+        // Trigger resend in background then show confirmation
+        fetch(`${API}/api/vendors/resend`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(isEmail ? { email: val } : { phone: val }),
+        }).catch(() => {});
+        setCheckStatus('resent');
       } else if (data.status === 'pending') {
         setResumeData(data as ResumeData);
         setCheckStatus('pending');
@@ -172,6 +178,21 @@ const VendorSlip = () => {
             <button onClick={() => { setCheckStatus('idle'); setResumeData(null); setInput(''); }}
               className="text-gray-500 text-sm hover:text-gray-300 transition-colors text-center">
               ← Try different details
+            </button>
+          </div>
+
+        ) : checkStatus === 'resent' ? (
+          <div className="w-full max-w-xs text-center flex flex-col gap-4">
+            <div className="bg-green-900/30 border border-green-500/40 rounded-2xl p-6">
+              <p className="text-3xl mb-3">✓</p>
+              <p className="text-green-400 font-semibold text-sm">
+                Your vendor slip has been resent to your email address.
+              </p>
+              <p className="text-gray-400 text-xs mt-2">Check your inbox (and spam folder).</p>
+            </div>
+            <button onClick={() => { setCheckStatus('idle'); setInput(''); }}
+              className="text-gray-500 text-sm hover:text-gray-300 transition-colors">
+              ← Try again
             </button>
           </div>
 

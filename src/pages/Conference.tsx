@@ -95,6 +95,14 @@ const VENDOR_CATEGORIES: { group: string; items: VendorCategory[] }[] = [
   },
 ];
 
+const MIN_VENDOR_FEE = Math.min(
+  ...VENDOR_CATEGORIES
+    .filter(g => g.group !== 'Test')
+    .flatMap(g => g.items)
+    .filter(item => !item.mryOnly)
+    .map(item => item.fee)
+);
+
 interface VendorForm {
   firstName: string; lastName: string; businessName: string;
   phone: string; email: string; category: string;
@@ -705,7 +713,7 @@ const Conference = () => {
             {isParticipant ? 'Registration Fee' : 'Space Fee (from)'}
           </p>
           <p className="text-white text-4xl sm:text-5xl font-black">
-            {isParticipant ? `₦${CONFERENCE_FEE.toLocaleString()}` : `₦${(15000 + PLATFORM_FEE).toLocaleString()}`}
+            {isParticipant ? `₦${CONFERENCE_FEE.toLocaleString()}` : `₦${(MIN_VENDOR_FEE + PLATFORM_FEE).toLocaleString()}`}
           </p>
           {!isParticipant && (
             <p className="text-purple-400 text-xs mt-1">Varies by category</p>
