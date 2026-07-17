@@ -65,10 +65,11 @@ interface StaffMember {
   createdAt: string;
 }
 
-type TabType = 'registrations' | 'verify' | 'staff' | 'send-slip' | 'vendors' | 'payment-tools';
+type TabType = 'dashboard' | 'registrations' | 'verify' | 'staff' | 'send-slip' | 'vendors' | 'payment-tools';
 type StateFilter = 'ALL' | 'FCT' | 'NIGER' | 'KADUNA' | 'OTHER';
 
 const NAV_ITEMS: { tab: TabType; label: string; icon: string }[] = [
+  { tab: 'dashboard', label: 'Dashboard', icon: '📊' },
   { tab: 'registrations', label: 'Registrations', icon: '📋' },
   { tab: 'verify', label: 'Verify', icon: '✅' },
   { tab: 'vendors', label: 'Vendors', icon: '🏬' },
@@ -96,6 +97,16 @@ const EyeIcon = ({ open }: { open: boolean }) =>
       <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
     </svg>
   );
+
+const StatTile = ({ icon, label, value, cls }: { icon: string; label: string; value: number; cls: string }) => (
+  <div className="bg-white/5 border border-white/10 rounded-xl p-4 hover:border-white/20 transition-colors">
+    <div className="flex items-center gap-2 mb-1.5">
+      <span className="text-sm leading-none opacity-70">{icon}</span>
+      <p className="text-gray-400 text-xs uppercase tracking-wider">{label}</p>
+    </div>
+    <p className={`text-3xl font-black ${cls}`}>{value}</p>
+  </div>
+);
 
 const PrintReport = ({ data, stateLabel }: { data: Registration[]; stateLabel: string }) => (
   <div className="print-only">
@@ -135,7 +146,7 @@ const AdminConsole = () => {
   const [loginError, setLoginError] = useState('');
   const [showPwd, setShowPwd] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<TabType>('registrations');
+  const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [loadingRegs, setLoadingRegs] = useState(false);
@@ -543,6 +554,14 @@ const AdminConsole = () => {
     verified: paidRegistrations.filter(r => r.verified).length,
   };
 
+  const isVendorPaid = (v: VendorRecord) => v.paymentStatus === 'success' || v.paymentStatus === 'successful';
+  const vendorStats = {
+    total: vendors.length,
+    paid: vendors.filter(isVendorPaid).length,
+    drafts: vendors.filter(v => !isVendorPaid(v)).length,
+    verified: vendors.filter(v => isVendorPaid(v) && v.verified).length,
+  };
+
   /* ════ CONFIRM MODAL ════ */
   const ConfirmModal = confirmModal ? (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
@@ -690,26 +709,51 @@ const AdminConsole = () => {
 
           <main className="w-full px-4 sm:px-6 py-6 sm:py-8 space-y-6">
 
+          {/* ════ DASHBOARD TAB ════ */}
+          {activeTab === 'dashboard' && (
+            <div className="space-y-8 max-w-6xl">
+              <div>
+                <h2 className="text-white font-bold text-lg">Registrations</h2>
+                <p className="text-gray-500 text-sm mt-0.5 mb-4">Overview</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <StatTile icon="📋" label="Total"    value={stats.allTotal} cls="text-white" />
+                  <StatTile icon="✅" label="Paid"     value={stats.total}    cls="text-emerald-400" />
+                  <StatTile icon="📝" label="Drafts"   value={stats.drafts}   cls="text-yellow-500" />
+                  <StatTile icon="✔️" label="Verified" value={stats.verified} cls="text-green-400" />
+                </div>
+                <p className="text-gray-500 text-sm mt-6 mb-3">By state</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <StatTile icon="📍" label="FCT"    value={stats.FCT}    cls="text-blue-400" />
+                  <StatTile icon="📍" label="Niger"  value={stats.NIGER}  cls="text-green-400" />
+                  <StatTile icon="📍" label="Kaduna" value={stats.KADUNA} cls="text-yellow-400" />
+                  <StatTile icon="📍" label="Others" value={stats.OTHER} cls="text-purple-400" />
+                </div>
+              </div>
+
+              <div>
+                <h2 className="text-white font-bold text-lg">Vendors</h2>
+                <p className="text-gray-500 text-sm mt-0.5 mb-4">Overview</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <StatTile icon="🏬" label="Total"    value={vendorStats.total}    cls="text-white" />
+                  <StatTile icon="✅" label="Paid"     value={vendorStats.paid}     cls="text-amber-400" />
+                  <StatTile icon="📝" label="Drafts"   value={vendorStats.drafts}   cls="text-gray-400" />
+                  <StatTile icon="✔️" label="Verified" value={vendorStats.verified} cls="text-emerald-400" />
+                </div>
+              </div>
+
+              <div>
+                <h2 className="text-white font-bold text-lg">Staff</h2>
+                <p className="text-gray-500 text-sm mt-0.5 mb-4">Overview</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <StatTile icon="👥" label="Total accounts" value={staff.length} cls="text-purple-400" />
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* ════ REGISTRATIONS TAB ════ */}
           {activeTab === 'registrations' && (
             <>
-              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-                {[
-                  { label: 'Total',    value: stats.allTotal, cls: 'text-white' },
-                  { label: 'Paid',     value: stats.total,    cls: 'text-purple-400' },
-                  { label: 'Drafts',   value: stats.drafts,   cls: 'text-gray-500' },
-                  { label: 'FCT',      value: stats.FCT,      cls: 'text-blue-400' },
-                  { label: 'Niger',    value: stats.NIGER,    cls: 'text-green-400' },
-                  { label: 'Kaduna',   value: stats.KADUNA,   cls: 'text-yellow-400' },
-                  { label: 'Others',   value: stats.OTHER,    cls: 'text-purple-400' },
-                  { label: 'Verified', value: stats.verified, cls: 'text-emerald-400' },
-                ].map(s => (
-                  <div key={s.label} className="bg-white/5 border border-white/10 rounded-xl p-4 text-center">
-                    <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">{s.label}</p>
-                    <p className={`text-3xl font-black ${s.cls}`}>{s.value}</p>
-                  </div>
-                ))}
-              </div>
 
               <div className="bg-white/5 border border-white/10 rounded-xl p-4">
                 <p className="text-gray-400 text-xs uppercase tracking-wider mb-3 font-semibold">Print Registrations by State</p>
@@ -1257,8 +1301,6 @@ const AdminConsole = () => {
 
           {/* ════ VENDORS TAB ════ */}
           {activeTab === 'vendors' && (() => {
-            const paidVendors  = vendors.filter(v => v.paymentStatus === 'success' || v.paymentStatus === 'successful');
-            const draftVendors = vendors.filter(v => v.paymentStatus !== 'success' && v.paymentStatus !== 'successful');
             const q = vendorSearch.trim().toLowerCase();
             const filteredVendors = vendors.filter(v =>
               !q ||
@@ -1273,21 +1315,6 @@ const AdminConsole = () => {
 
             return (
               <div className="space-y-6">
-                {/* Stats */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {[
-                    { label: 'Total',    value: vendors.length,           cls: 'text-white' },
-                    { label: 'Paid',     value: paidVendors.length,       cls: 'text-amber-400' },
-                    { label: 'Drafts',   value: draftVendors.length,      cls: 'text-gray-500' },
-                    { label: 'Verified', value: paidVendors.filter(v => v.verified).length, cls: 'text-emerald-400' },
-                  ].map(s => (
-                    <div key={s.label} className="bg-white/5 border border-white/10 rounded-xl p-4 text-center">
-                      <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">{s.label}</p>
-                      <p className={`text-3xl font-black ${s.cls}`}>{s.value}</p>
-                    </div>
-                  ))}
-                </div>
-
                 {/* Search */}
                 <input
                   type="search"
