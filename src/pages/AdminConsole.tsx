@@ -65,8 +65,17 @@ interface StaffMember {
   createdAt: string;
 }
 
-type TabType = 'registrations' | 'verify' | 'staff' | 'send-slip' | 'vendors';
+type TabType = 'registrations' | 'verify' | 'staff' | 'send-slip' | 'vendors' | 'payment-tools';
 type StateFilter = 'ALL' | 'FCT' | 'NIGER' | 'KADUNA' | 'OTHER';
+
+const NAV_ITEMS: { tab: TabType; label: string; icon: string }[] = [
+  { tab: 'registrations', label: 'Registrations', icon: '📋' },
+  { tab: 'verify', label: 'Verify', icon: '✅' },
+  { tab: 'vendors', label: 'Vendors', icon: '🏬' },
+  { tab: 'staff', label: 'Staff Accounts', icon: '👥' },
+  { tab: 'send-slip', label: 'Send Slip', icon: '✉️' },
+  { tab: 'payment-tools', label: 'Payment Tools', icon: '💳' },
+];
 
 const STATE_LABELS: Record<string, string> = { FCT: 'FCT', NIGER: 'Niger', KADUNA: 'Kaduna', OTHER: 'Other States' };
 const STATE_COLORS: Record<string, string> = {
@@ -127,6 +136,7 @@ const AdminConsole = () => {
   const [showPwd, setShowPwd] = useState(false);
 
   const [activeTab, setActiveTab] = useState<TabType>('registrations');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [loadingRegs, setLoadingRegs] = useState(false);
   const [filter, setFilter] = useState<StateFilter>('ALL');
@@ -287,7 +297,7 @@ const AdminConsole = () => {
       setDuplicateDrafts(prev => prev?.filter(x => x.id !== d.id || x.table !== d.table) ?? null);
       if (d.table === 'vendors') setVendors(prev => prev.filter(v => v.id !== d.id));
       else setRegistrations(prev => prev.filter(r => r.id !== d.id));
-    } catch (err) {
+    } catch {
       alert('Failed to delete this row');
     } finally {
       setDeletingDuplicate(null);
@@ -621,153 +631,64 @@ const AdminConsole = () => {
 
       {printTarget && <PrintReport data={printData} stateLabel={printLabel} />}
 
-      <div className="no-print min-h-screen bg-gray-950 text-white">
+      <div className="no-print min-h-screen bg-gray-950 text-white flex">
 
-        <header className="bg-black/50 border-b border-white/10 px-4 sm:px-6 py-4 flex flex-wrap justify-between items-center gap-3 sticky top-0 z-10 backdrop-blur-md">
-          <div className="flex items-center gap-3 min-w-0">
+        {/* Mobile drawer backdrop */}
+        {sidebarOpen && (
+          <div onClick={() => setSidebarOpen(false)} className="fixed inset-0 bg-black/60 z-30 lg:hidden" />
+        )}
+
+        {/* ════ SIDEBAR ════ */}
+        <aside
+          className={`fixed lg:static inset-y-0 left-0 z-40 w-64 shrink-0 bg-black/50 border-r border-white/10 flex flex-col transition-transform duration-200 ${
+            sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          } lg:translate-x-0`}
+        >
+          <div className="p-5 flex items-center gap-3 border-b border-white/10">
             <img src="/favicon.png" alt="CACYOF" className="h-9 w-9 shrink-0 object-contain" />
             <div className="min-w-0">
               <h1 className="font-black text-base leading-none">Super Admin Console</h1>
-              <p className="text-gray-400 text-xs mt-0.5 hidden sm:block">2026 Youth Conference Management</p>
+              <p className="text-gray-400 text-xs mt-0.5">2026 Youth Conference Management</p>
             </div>
           </div>
-          <div className="flex gap-2 flex-wrap justify-start sm:justify-end w-full sm:w-auto">
-            <button
-              onClick={handleSyncPayments}
-              disabled={syncing}
-              title="Verify all pending registrations against Flutterwave and mark paid ones as success"
-              className="px-3 sm:px-4 py-2 text-xs sm:text-sm border border-emerald-600/50 text-emerald-400 hover:border-emerald-400 hover:bg-emerald-900/20 rounded-lg transition-colors disabled:opacity-50"
-            >
-              {syncing ? 'Syncing…' : '⟳ Sync Payments'}
-            </button>
-            <button
-              onClick={handleAuditPayments}
-              disabled={auditing}
-              title="Scan Flutterwave's last 14 days of successful transactions for payments missing from our database"
-              className="px-3 sm:px-4 py-2 text-xs sm:text-sm border border-amber-600/50 text-amber-400 hover:border-amber-400 hover:bg-amber-900/20 rounded-lg transition-colors disabled:opacity-50"
-            >
-              {auditing ? 'Auditing…' : '🔍 Audit (14d)'}
-            </button>
-            <button
-              onClick={handleFindDuplicateDrafts}
-              disabled={loadingDuplicates}
-              title="Find draft/pending rows for people who already have a separate paid registration"
-              className="px-3 sm:px-4 py-2 text-xs sm:text-sm border border-sky-600/50 text-sky-400 hover:border-sky-400 hover:bg-sky-900/20 rounded-lg transition-colors disabled:opacity-50"
-            >
-              {loadingDuplicates ? 'Checking…' : '🧹 Duplicate Drafts'}
-            </button>
-            <button onClick={fetchRegistrations} className="px-3 sm:px-4 py-2 text-xs sm:text-sm border border-white/20 hover:border-purple-400 rounded-lg transition-colors">
-              Refresh
-            </button>
-            <button onClick={handleLogout} className="px-3 sm:px-4 py-2 text-xs sm:text-sm bg-red-900/50 hover:bg-red-900 rounded-lg transition-colors">
-              Logout
-            </button>
-          </div>
-        </header>
 
-        <div className="border-b border-white/10 px-4 sm:px-6">
-          <div className="flex gap-0 max-w-7xl mx-auto">
-            {([['registrations', 'Registrations'], ['verify', 'Verify'], ['vendors', 'Vendors'], ['staff', 'Staff Accounts'], ['send-slip', 'Send Slip']] as [TabType, string][]).map(([tab, label]) => (
+          <nav className="flex-1 overflow-y-auto p-3 space-y-1">
+            {NAV_ITEMS.map(({ tab, label, icon }) => (
               <button
                 key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-4 sm:px-6 py-3.5 text-sm font-semibold border-b-2 transition-colors ${
-                  activeTab === tab ? 'border-purple-400 text-purple-400' : 'border-transparent text-gray-400 hover:text-white'
+                onClick={() => { setActiveTab(tab); setSidebarOpen(false); }}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
+                  activeTab === tab ? 'bg-purple-600/20 text-purple-300' : 'text-gray-400 hover:text-white hover:bg-white/5'
                 }`}
               >
-                {label}
+                <span className="text-base leading-none">{icon}</span>
+                <span className="flex-1 text-left">{label}</span>
                 {tab === 'staff' && staff.length > 0 && (
-                  <span className="ml-2 px-1.5 py-0.5 bg-purple-900/60 text-purple-300 text-xs rounded-md">{staff.length}</span>
+                  <span className="px-1.5 py-0.5 bg-purple-900/60 text-purple-300 text-xs rounded-md">{staff.length}</span>
                 )}
                 {tab === 'vendors' && vendors.length > 0 && (
-                  <span className="ml-2 px-1.5 py-0.5 bg-amber-900/60 text-amber-300 text-xs rounded-md">{vendors.length}</span>
+                  <span className="px-1.5 py-0.5 bg-amber-900/60 text-amber-300 text-xs rounded-md">{vendors.length}</span>
                 )}
               </button>
             ))}
+          </nav>
+
+          <div className="p-3 border-t border-white/10">
+            <button onClick={handleLogout} className="w-full px-3 py-2.5 text-sm font-semibold bg-red-900/50 hover:bg-red-900 rounded-lg transition-colors">
+              Logout
+            </button>
           </div>
-        </div>
+        </aside>
 
-        <main className="w-full px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+        {/* ════ MAIN CONTENT ════ */}
+        <div className="flex-1 min-w-0 flex flex-col">
+          {/* Mobile top bar */}
+          <div className="lg:hidden sticky top-0 z-10 bg-black/50 border-b border-white/10 px-4 py-3 flex items-center gap-3 backdrop-blur-md">
+            <button onClick={() => setSidebarOpen(true)} className="text-2xl leading-none px-1" aria-label="Open menu">☰</button>
+            <span className="font-bold text-sm">{NAV_ITEMS.find(n => n.tab === activeTab)?.label}</span>
+          </div>
 
-          {/* Sync result banner — shown after syncing payments */}
-          {syncResult && (
-            <div className={`rounded-xl px-4 py-3 border text-sm flex items-center justify-between gap-3 ${syncResult.synced > 0 ? 'bg-emerald-900/20 border-emerald-500/30 text-emerald-300' : 'bg-white/5 border-white/10 text-gray-300'}`}>
-              <span>
-                {syncResult.message
-                  ? syncResult.message
-                  : `Synced ${syncResult.synced} payment${syncResult.synced !== 1 ? 's' : ''} from Flutterwave (checked ${syncResult.checked})`}
-              </span>
-              <button onClick={() => setSyncResult(null)} className="text-gray-500 hover:text-white text-xs shrink-0">✕</button>
-            </div>
-          )}
-
-          {/* Audit result banner — shown after auditing Flutterwave vs our DB */}
-          {auditResult && (
-            <div className={`rounded-xl px-4 py-3 border text-sm space-y-3 ${auditResult.orphaned > 0 ? 'bg-red-900/20 border-red-500/30 text-red-300' : 'bg-white/5 border-white/10 text-gray-300'}`}>
-              <div className="flex items-center justify-between gap-3">
-                <span>
-                  Checked {auditResult.checked} successful Flutterwave transaction{auditResult.checked !== 1 ? 's' : ''} from the last {auditResult.windowDays} days —
-                  {' '}{auditResult.fixed} fixed, {auditResult.orphaned} with no matching record
-                </span>
-                <button onClick={() => setAuditResult(null)} className="text-gray-500 hover:text-white text-xs shrink-0">✕</button>
-              </div>
-              {auditResult.orphaned > 0 && (
-                <ul className="space-y-1.5 text-xs text-gray-300">
-                  {auditResult.orphanedDetails.map((o) => (
-                    <li key={o.tx_ref} className="bg-black/20 rounded-lg px-3 py-2">
-                      <span className="font-semibold text-white">{o.name || 'Unknown'}</span> — {o.email || 'no email'} — ₦{o.amount}
-                      <br />
-                      tx_ref: {o.tx_ref} · FLW id: {o.flw_transaction_id} · table: {o.table}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-
-          {/* Duplicate drafts banner — draft/pending rows for people already paid elsewhere */}
-          {duplicateDrafts && (
-            <div className="rounded-xl px-4 py-3 border border-sky-500/30 bg-sky-900/10 text-sm space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-sky-300">
-                  {duplicateDrafts.length === 0
-                    ? 'No duplicate drafts found — nothing to clean up.'
-                    : `${duplicateDrafts.length} duplicate draft${duplicateDrafts.length !== 1 ? 's' : ''} found — each of these people already has a separate paid registration.`}
-                </span>
-                <div className="flex items-center gap-2 shrink-0">
-                  {duplicateDrafts.length > 0 && (
-                    <button
-                      onClick={handleDeleteAllDuplicateDrafts}
-                      className="px-3 py-1.5 text-xs bg-red-900/50 hover:bg-red-900 rounded-lg transition-colors"
-                    >
-                      Delete all
-                    </button>
-                  )}
-                  <button onClick={() => setDuplicateDrafts(null)} className="text-gray-500 hover:text-white text-xs">✕</button>
-                </div>
-              </div>
-              {duplicateDrafts.length > 0 && (
-                <ul className="space-y-1.5 text-xs text-gray-300">
-                  {duplicateDrafts.map(d => (
-                    <li key={`${d.table}-${d.id}`} className="bg-black/20 rounded-lg px-3 py-2 flex items-center justify-between gap-3">
-                      <span>
-                        <span className="font-semibold text-white">{d.name}</span> — {d.phone} — {d.table}
-                        <br />
-                        this draft: {d.uniqueCode || d.txRef} ({d.paymentStatus}) · already paid as: {d.paidUniqueCode}
-                      </span>
-                      <button
-                        onClick={() => handleDeleteDuplicateDraft(d)}
-                        disabled={deletingDuplicate === d.id}
-                        className="px-3 py-1 bg-red-900/40 hover:bg-red-900/70 text-red-300 rounded text-xs font-semibold transition-colors disabled:opacity-50 shrink-0"
-                      >
-                        {deletingDuplicate === d.id ? '…' : 'Delete'}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
+          <main className="w-full px-4 sm:px-6 py-6 sm:py-8 space-y-6">
 
           {/* ════ REGISTRATIONS TAB ════ */}
           {activeTab === 'registrations' && (
@@ -849,9 +770,14 @@ const AdminConsole = () => {
                 </div>
               </div>
 
-              <p className="text-gray-400 text-sm">
-                Showing <span className="text-white font-semibold">{filtered.length}</span> registrant{filtered.length !== 1 ? 's' : ''}
-              </p>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-gray-400 text-sm">
+                  Showing <span className="text-white font-semibold">{filtered.length}</span> registrant{filtered.length !== 1 ? 's' : ''}
+                </p>
+                <button onClick={fetchRegistrations} className="px-3 py-1.5 text-xs border border-white/20 hover:border-purple-400 rounded-lg transition-colors shrink-0">
+                  Refresh
+                </button>
+              </div>
 
               {loadingRegs ? (
                 <div className="text-center py-20 text-gray-400">Loading registrations…</div>
@@ -1493,7 +1419,124 @@ const AdminConsole = () => {
             );
           })()}
 
-        </main>
+          {/* ════ PAYMENT TOOLS TAB ════ */}
+          {activeTab === 'payment-tools' && (
+            <div className="space-y-6 max-w-3xl">
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={handleSyncPayments}
+                  disabled={syncing}
+                  title="Verify all pending registrations against Flutterwave and mark paid ones as success"
+                  className="px-4 py-2.5 text-sm border border-emerald-600/50 text-emerald-400 hover:border-emerald-400 hover:bg-emerald-900/20 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {syncing ? 'Syncing…' : '⟳ Sync Payments'}
+                </button>
+                <button
+                  onClick={handleAuditPayments}
+                  disabled={auditing}
+                  title="Scan Flutterwave's last 14 days of successful transactions for payments missing from our database"
+                  className="px-4 py-2.5 text-sm border border-amber-600/50 text-amber-400 hover:border-amber-400 hover:bg-amber-900/20 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {auditing ? 'Auditing…' : '🔍 Audit (14d)'}
+                </button>
+                <button
+                  onClick={handleFindDuplicateDrafts}
+                  disabled={loadingDuplicates}
+                  title="Find draft/pending rows for people who already have a separate paid registration"
+                  className="px-4 py-2.5 text-sm border border-sky-600/50 text-sky-400 hover:border-sky-400 hover:bg-sky-900/20 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {loadingDuplicates ? 'Checking…' : '🧹 Duplicate Drafts'}
+                </button>
+              </div>
+
+              {!syncResult && !auditResult && !duplicateDrafts && (
+                <p className="text-gray-500 text-sm">Run one of the tools above to reconcile payments against Flutterwave.</p>
+              )}
+
+              {/* Sync result banner — shown after syncing payments */}
+              {syncResult && (
+                <div className={`rounded-xl px-4 py-3 border text-sm flex items-center justify-between gap-3 ${syncResult.synced > 0 ? 'bg-emerald-900/20 border-emerald-500/30 text-emerald-300' : 'bg-white/5 border-white/10 text-gray-300'}`}>
+                  <span>
+                    {syncResult.message
+                      ? syncResult.message
+                      : `Synced ${syncResult.synced} payment${syncResult.synced !== 1 ? 's' : ''} from Flutterwave (checked ${syncResult.checked})`}
+                  </span>
+                  <button onClick={() => setSyncResult(null)} className="text-gray-500 hover:text-white text-xs shrink-0">✕</button>
+                </div>
+              )}
+
+              {/* Audit result banner — shown after auditing Flutterwave vs our DB */}
+              {auditResult && (
+                <div className={`rounded-xl px-4 py-3 border text-sm space-y-3 ${auditResult.orphaned > 0 ? 'bg-red-900/20 border-red-500/30 text-red-300' : 'bg-white/5 border-white/10 text-gray-300'}`}>
+                  <div className="flex items-center justify-between gap-3">
+                    <span>
+                      Checked {auditResult.checked} successful Flutterwave transaction{auditResult.checked !== 1 ? 's' : ''} from the last {auditResult.windowDays} days —
+                      {' '}{auditResult.fixed} fixed, {auditResult.orphaned} with no matching record
+                    </span>
+                    <button onClick={() => setAuditResult(null)} className="text-gray-500 hover:text-white text-xs shrink-0">✕</button>
+                  </div>
+                  {auditResult.orphaned > 0 && (
+                    <ul className="space-y-1.5 text-xs text-gray-300">
+                      {auditResult.orphanedDetails.map((o) => (
+                        <li key={o.tx_ref} className="bg-black/20 rounded-lg px-3 py-2">
+                          <span className="font-semibold text-white">{o.name || 'Unknown'}</span> — {o.email || 'no email'} — ₦{o.amount}
+                          <br />
+                          tx_ref: {o.tx_ref} · FLW id: {o.flw_transaction_id} · table: {o.table}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+
+              {/* Duplicate drafts banner — draft/pending rows for people already paid elsewhere */}
+              {duplicateDrafts && (
+                <div className="rounded-xl px-4 py-3 border border-sky-500/30 bg-sky-900/10 text-sm space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-sky-300">
+                      {duplicateDrafts.length === 0
+                        ? 'No duplicate drafts found — nothing to clean up.'
+                        : `${duplicateDrafts.length} duplicate draft${duplicateDrafts.length !== 1 ? 's' : ''} found — each of these people already has a separate paid registration.`}
+                    </span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {duplicateDrafts.length > 0 && (
+                        <button
+                          onClick={handleDeleteAllDuplicateDrafts}
+                          className="px-3 py-1.5 text-xs bg-red-900/50 hover:bg-red-900 rounded-lg transition-colors"
+                        >
+                          Delete all
+                        </button>
+                      )}
+                      <button onClick={() => setDuplicateDrafts(null)} className="text-gray-500 hover:text-white text-xs">✕</button>
+                    </div>
+                  </div>
+                  {duplicateDrafts.length > 0 && (
+                    <ul className="space-y-1.5 text-xs text-gray-300">
+                      {duplicateDrafts.map(d => (
+                        <li key={`${d.table}-${d.id}`} className="bg-black/20 rounded-lg px-3 py-2 flex items-center justify-between gap-3">
+                          <span>
+                            <span className="font-semibold text-white">{d.name}</span> — {d.phone} — {d.table}
+                            <br />
+                            this draft: {d.uniqueCode || d.txRef} ({d.paymentStatus}) · already paid as: {d.paidUniqueCode}
+                          </span>
+                          <button
+                            onClick={() => handleDeleteDuplicateDraft(d)}
+                            disabled={deletingDuplicate === d.id}
+                            className="px-3 py-1 bg-red-900/40 hover:bg-red-900/70 text-red-300 rounded text-xs font-semibold transition-colors disabled:opacity-50 shrink-0"
+                          >
+                            {deletingDuplicate === d.id ? '…' : 'Delete'}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          </main>
+        </div>
       </div>
     </>
   );
