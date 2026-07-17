@@ -56,27 +56,20 @@ router.post('/', async (req, res) => {
     }
 
     // De-dupe abandoned attempts: if this same person (same phone + name) already
-    // has an unpaid pending vendor registration from an earlier attempt, update
-    // that row in place rather than inserting a new one. Matched on phone+name
-    // (not email) since one email may cover several vendors, and the same email
-    // may also belong to a conference participant in a different table. Only
-    // ever touches 'pending' rows — a successful (paid) vendor is never overwritten.
+    // has an unpaid pending vendor registration from an earlier attempt, mark
+    // that old row 'abandoned' and fall through to insert a fresh row — instead
+    // of overwriting its tx_ref in place, which used to orphan the old tx_ref if
+    // that earlier attempt actually succeeded on Flutterwave after the user
+    // retried. Marking it 'abandoned' keeps it reconcilable (sync already checks
+    // any row with payment_status != 'success'). Matched on phone+name (not
+    // email) since one email may cover several vendors, and the same email may
+    // also belong to a conference participant in a different table.
     if (phone && name) {
-      const dup = await pool.query(
-        `SELECT id FROM vendors WHERE phone = $1 AND LOWER(name) = LOWER($2) AND payment_status = 'pending' LIMIT 1`,
+      await pool.query(
+        `UPDATE vendors SET payment_status = 'abandoned'
+         WHERE phone = $1 AND LOWER(name) = LOWER($2) AND payment_status = 'pending'`,
         [phone, name]
       );
-      if (dup.rows.length > 0) {
-        const updated = await pool.query(
-          `UPDATE vendors SET
-             first_name = $1, last_name = $2, name = $3, business_name = $4,
-             phone = $5, email = $6, category = $7, unique_code = $8, tx_ref = $9, amount = $10
-           WHERE id = $11
-           RETURNING *`,
-          [firstName, lastName, name, businessName, phone, email || null, category, uniqueCode, txRef || null, amount || 0, dup.rows[0].id]
-        );
-        return res.status(200).json(toVendor(updated.rows[0]));
-      }
     }
 
     const result = await pool.query(
@@ -222,6 +215,40 @@ router.get('/', requireAdmin, async (_req, res) => {
   } catch (err) {
     console.error('Fetch vendors error:', err);
     res.status(500).json({ error: 'Failed to fetch vendors' });
+  }
+});
+
+// GET /api/vendors/duplicate-drafts — admin only.
+// Same idea as the registrations version: non-paid vendor rows whose same
+// phone+name already has a different row marked payment_status='success'.
+router.get('/duplicate-drafts', requireAdmin, async (_req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT DISTINCT ON (v.id)
+        v.id, v.name, v.phone, v.email, v.tx_ref, v.payment_status, v.unique_code, v.registered_at,
+        p.id AS paid_id, p.unique_code AS paid_unique_code
+      FROM vendors v
+      JOIN vendors p
+        ON p.phone = v.phone AND LOWER(p.name) = LOWER(v.name)
+        AND p.payment_status = 'success' AND p.id <> v.id
+      WHERE v.payment_status != 'success'
+      ORDER BY v.id, p.id
+    `);
+    res.json(result.rows.map(row => ({
+      id: String(row.id),
+      name: row.name,
+      phone: row.phone,
+      email: row.email,
+      txRef: row.tx_ref,
+      paymentStatus: row.payment_status,
+      uniqueCode: row.unique_code,
+      registeredAt: row.registered_at,
+      paidId: String(row.paid_id),
+      paidUniqueCode: row.paid_unique_code,
+    })));
+  } catch (err) {
+    console.error('Vendor duplicate drafts lookup error:', err);
+    res.status(500).json({ error: 'Failed to find duplicate drafts' });
   }
 });
 

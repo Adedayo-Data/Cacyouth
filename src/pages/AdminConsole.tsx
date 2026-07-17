@@ -3,6 +3,7 @@ import { CodeLookup } from './StaffPortal';
 
 const API = import.meta.env.VITE_API_URL ?? '';
 const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD ?? 'admin123';
+const PAGE_SIZE = 50;
 
 interface Registration {
   id: string;
@@ -131,10 +132,28 @@ const AdminConsole = () => {
   const [filter, setFilter] = useState<StateFilter>('ALL');
   const [paymentFilter, setPaymentFilter] = useState<'paid' | 'all'>('all');
   const [search, setSearch] = useState('');
+  const [regPage, setRegPage] = useState(1);
+  const [vendorPage, setVendorPage] = useState(1);
   const [verifying, setVerifying] = useState<string | null>(null);
   const [verifyState, setVerifyState] = useState<'FCT' | 'NIGER' | 'KADUNA' | 'OTHER' | ''>('');
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<{ synced: number; checked: number; failed: number; message?: string } | null>(null);
+  const [auditing, setAuditing] = useState(false);
+  const [auditResult, setAuditResult] = useState<{
+    windowDays: number; checked: number; fixed: number;
+    fixedDetails: { tx_ref: string; table: string; name?: string }[];
+    orphaned: number;
+    orphanedDetails: { tx_ref: string; flw_transaction_id: number; amount: number; email?: string; name?: string; phone?: string; paid_at?: string; table: string }[];
+  } | null>(null);
+
+  interface DuplicateDraft {
+    id: string; name: string; phone: string; email: string; txRef: string;
+    paymentStatus: string; uniqueCode: string; registeredAt: string;
+    paidId: string; paidUniqueCode: string; table: 'registrations' | 'vendors';
+  }
+  const [loadingDuplicates, setLoadingDuplicates] = useState(false);
+  const [duplicateDrafts, setDuplicateDrafts] = useState<DuplicateDraft[] | null>(null);
+  const [deletingDuplicate, setDeletingDuplicate] = useState<string | null>(null);
 
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [loadingStaff, setLoadingStaff] = useState(false);
@@ -214,6 +233,79 @@ const AdminConsole = () => {
     } finally {
       setSyncing(false);
     }
+  };
+
+  /* ── Audit: cross-check Flutterwave's own transaction list against our DB ── */
+  const handleAuditPayments = async () => {
+    setAuditing(true);
+    setAuditResult(null);
+    try {
+      const res = await fetch(`${API}/api/payment/audit`, {
+        method: 'POST',
+        headers: { ...adminHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ days: 14 }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Audit failed');
+      setAuditResult(data);
+      if (data.fixed > 0) fetchRegistrations();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Audit failed — check that FLW_SECRET_KEY is set in Railway');
+    } finally {
+      setAuditing(false);
+    }
+  };
+
+  /* ── Find leftover draft rows for people who already paid under a different row ── */
+  const handleFindDuplicateDrafts = async () => {
+    setLoadingDuplicates(true);
+    setDuplicateDrafts(null);
+    try {
+      const [regRes, vendorRes] = await Promise.all([
+        fetch(`${API}/api/registrations/duplicate-drafts`, { headers: adminHeaders }),
+        fetch(`${API}/api/vendors/duplicate-drafts`, { headers: adminHeaders }),
+      ]);
+      const [regData, vendorData] = await Promise.all([regRes.json(), vendorRes.json()]);
+      if (!regRes.ok) throw new Error(regData.error || 'Lookup failed');
+      if (!vendorRes.ok) throw new Error(vendorData.error || 'Lookup failed');
+      setDuplicateDrafts([
+        ...regData.map((d: Omit<DuplicateDraft, 'table'>) => ({ ...d, table: 'registrations' as const })),
+        ...vendorData.map((d: Omit<DuplicateDraft, 'table'>) => ({ ...d, table: 'vendors' as const })),
+      ]);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to find duplicate drafts');
+    } finally {
+      setLoadingDuplicates(false);
+    }
+  };
+
+  const handleDeleteDuplicateDraft = async (d: DuplicateDraft) => {
+    setDeletingDuplicate(d.id);
+    try {
+      const path = d.table === 'vendors' ? `/api/vendors/${d.id}` : `/api/registrations/${d.id}`;
+      await fetch(`${API}${path}`, { method: 'DELETE', headers: adminHeaders });
+      setDuplicateDrafts(prev => prev?.filter(x => x.id !== d.id || x.table !== d.table) ?? null);
+      if (d.table === 'vendors') setVendors(prev => prev.filter(v => v.id !== d.id));
+      else setRegistrations(prev => prev.filter(r => r.id !== d.id));
+    } catch (err) {
+      alert('Failed to delete this row');
+    } finally {
+      setDeletingDuplicate(null);
+    }
+  };
+
+  const handleDeleteAllDuplicateDrafts = () => {
+    if (!duplicateDrafts || duplicateDrafts.length === 0) return;
+    setConfirmModal({
+      message: `Delete all ${duplicateDrafts.length} duplicate draft(s)? Each of these people already has a separate paid registration — this only removes the leftover unpaid copy.`,
+      onConfirm: async () => {
+        setConfirmModal(null);
+        const toDelete = duplicateDrafts;
+        for (const d of toDelete) {
+          await handleDeleteDuplicateDraft(d);
+        }
+      },
+    });
   };
 
   /* ── Fetch vendors ── */
@@ -384,6 +476,9 @@ const AdminConsole = () => {
     printReady.current = true;
   };
 
+  useEffect(() => { setRegPage(1); }, [filter, search, paymentFilter]);
+  useEffect(() => { setVendorPage(1); }, [vendorSearch]);
+
   useEffect(() => {
     if (printTarget && printReady.current) {
       const t = setTimeout(() => {
@@ -414,6 +509,9 @@ const AdminConsole = () => {
       const s = search.toLowerCase();
       return r.name.toLowerCase().includes(s) || r.uniqueCode.toLowerCase().includes(s) || r.email.toLowerCase().includes(s) || r.phone.includes(s);
     });
+
+  const regTotalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pagedFiltered = filtered.slice((regPage - 1) * PAGE_SIZE, regPage * PAGE_SIZE);
 
   const printData = printTarget
     ? (printTarget === 'ALL'
@@ -542,6 +640,22 @@ const AdminConsole = () => {
             >
               {syncing ? 'Syncing…' : '⟳ Sync Payments'}
             </button>
+            <button
+              onClick={handleAuditPayments}
+              disabled={auditing}
+              title="Scan Flutterwave's last 14 days of successful transactions for payments missing from our database"
+              className="px-3 sm:px-4 py-2 text-xs sm:text-sm border border-amber-600/50 text-amber-400 hover:border-amber-400 hover:bg-amber-900/20 rounded-lg transition-colors disabled:opacity-50"
+            >
+              {auditing ? 'Auditing…' : '🔍 Audit (14d)'}
+            </button>
+            <button
+              onClick={handleFindDuplicateDrafts}
+              disabled={loadingDuplicates}
+              title="Find draft/pending rows for people who already have a separate paid registration"
+              className="px-3 sm:px-4 py-2 text-xs sm:text-sm border border-sky-600/50 text-sky-400 hover:border-sky-400 hover:bg-sky-900/20 rounded-lg transition-colors disabled:opacity-50"
+            >
+              {loadingDuplicates ? 'Checking…' : '🧹 Duplicate Drafts'}
+            </button>
             <button onClick={fetchRegistrations} className="px-3 sm:px-4 py-2 text-xs sm:text-sm border border-white/20 hover:border-purple-400 rounded-lg transition-colors">
               Refresh
             </button>
@@ -584,6 +698,74 @@ const AdminConsole = () => {
                   : `Synced ${syncResult.synced} payment${syncResult.synced !== 1 ? 's' : ''} from Flutterwave (checked ${syncResult.checked})`}
               </span>
               <button onClick={() => setSyncResult(null)} className="text-gray-500 hover:text-white text-xs shrink-0">✕</button>
+            </div>
+          )}
+
+          {/* Audit result banner — shown after auditing Flutterwave vs our DB */}
+          {auditResult && (
+            <div className={`rounded-xl px-4 py-3 border text-sm space-y-3 ${auditResult.orphaned > 0 ? 'bg-red-900/20 border-red-500/30 text-red-300' : 'bg-white/5 border-white/10 text-gray-300'}`}>
+              <div className="flex items-center justify-between gap-3">
+                <span>
+                  Checked {auditResult.checked} successful Flutterwave transaction{auditResult.checked !== 1 ? 's' : ''} from the last {auditResult.windowDays} days —
+                  {' '}{auditResult.fixed} fixed, {auditResult.orphaned} with no matching record
+                </span>
+                <button onClick={() => setAuditResult(null)} className="text-gray-500 hover:text-white text-xs shrink-0">✕</button>
+              </div>
+              {auditResult.orphaned > 0 && (
+                <ul className="space-y-1.5 text-xs text-gray-300">
+                  {auditResult.orphanedDetails.map((o) => (
+                    <li key={o.tx_ref} className="bg-black/20 rounded-lg px-3 py-2">
+                      <span className="font-semibold text-white">{o.name || 'Unknown'}</span> — {o.email || 'no email'} — ₦{o.amount}
+                      <br />
+                      tx_ref: {o.tx_ref} · FLW id: {o.flw_transaction_id} · table: {o.table}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
+          {/* Duplicate drafts banner — draft/pending rows for people already paid elsewhere */}
+          {duplicateDrafts && (
+            <div className="rounded-xl px-4 py-3 border border-sky-500/30 bg-sky-900/10 text-sm space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sky-300">
+                  {duplicateDrafts.length === 0
+                    ? 'No duplicate drafts found — nothing to clean up.'
+                    : `${duplicateDrafts.length} duplicate draft${duplicateDrafts.length !== 1 ? 's' : ''} found — each of these people already has a separate paid registration.`}
+                </span>
+                <div className="flex items-center gap-2 shrink-0">
+                  {duplicateDrafts.length > 0 && (
+                    <button
+                      onClick={handleDeleteAllDuplicateDrafts}
+                      className="px-3 py-1.5 text-xs bg-red-900/50 hover:bg-red-900 rounded-lg transition-colors"
+                    >
+                      Delete all
+                    </button>
+                  )}
+                  <button onClick={() => setDuplicateDrafts(null)} className="text-gray-500 hover:text-white text-xs">✕</button>
+                </div>
+              </div>
+              {duplicateDrafts.length > 0 && (
+                <ul className="space-y-1.5 text-xs text-gray-300">
+                  {duplicateDrafts.map(d => (
+                    <li key={`${d.table}-${d.id}`} className="bg-black/20 rounded-lg px-3 py-2 flex items-center justify-between gap-3">
+                      <span>
+                        <span className="font-semibold text-white">{d.name}</span> — {d.phone} — {d.table}
+                        <br />
+                        this draft: {d.uniqueCode || d.txRef} ({d.paymentStatus}) · already paid as: {d.paidUniqueCode}
+                      </span>
+                      <button
+                        onClick={() => handleDeleteDuplicateDraft(d)}
+                        disabled={deletingDuplicate === d.id}
+                        className="px-3 py-1 bg-red-900/40 hover:bg-red-900/70 text-red-300 rounded text-xs font-semibold transition-colors disabled:opacity-50 shrink-0"
+                      >
+                        {deletingDuplicate === d.id ? '…' : 'Delete'}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
 
@@ -688,9 +870,9 @@ const AdminConsole = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {filtered.map((reg, i) => (
+                        {pagedFiltered.map((reg, i) => (
                           <tr key={reg.id} className="border-t border-white/5 hover:bg-white/5 transition-colors">
-                            <td className="px-3 py-2.5 text-gray-500 text-xs w-8">{i + 1}</td>
+                            <td className="px-3 py-2.5 text-gray-500 text-xs w-8">{(regPage - 1) * PAGE_SIZE + i + 1}</td>
                             <td className="px-3 py-2.5 max-w-[180px]">
                               <p className="font-semibold text-white text-xs truncate">{reg.name}</p>
                               <p className="text-gray-500 text-xs truncate">{reg.email}</p>
@@ -740,14 +922,14 @@ const AdminConsole = () => {
                   </div>
 
                   <div className="md:hidden space-y-3">
-                    {filtered.map((reg, i) => (
+                    {pagedFiltered.map((reg, i) => (
                       <div key={reg.id} className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-3">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
                             <p className="font-bold text-white text-sm leading-tight">{reg.name}</p>
                             <p className="text-gray-400 text-xs mt-0.5 truncate">{reg.email}</p>
                           </div>
-                          <span className="text-gray-500 text-xs shrink-0">#{i + 1}</span>
+                          <span className="text-gray-500 text-xs shrink-0">#{(regPage - 1) * PAGE_SIZE + i + 1}</span>
                         </div>
                         <div className="bg-black/30 rounded-lg py-3 px-4 text-center">
                           <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">Code</p>
@@ -786,6 +968,26 @@ const AdminConsole = () => {
                       </div>
                     ))}
                   </div>
+
+                  {regTotalPages > 1 && (
+                    <div className="flex items-center justify-center gap-3 pt-2">
+                      <button
+                        onClick={() => setRegPage(p => Math.max(1, p - 1))}
+                        disabled={regPage === 1}
+                        className="px-3 py-1.5 text-xs border border-white/20 rounded-lg hover:border-purple-400 disabled:opacity-40 disabled:hover:border-white/20 transition-colors"
+                      >
+                        Prev
+                      </button>
+                      <span className="text-gray-400 text-xs">Page {regPage} of {regTotalPages}</span>
+                      <button
+                        onClick={() => setRegPage(p => Math.min(regTotalPages, p + 1))}
+                        disabled={regPage === regTotalPages}
+                        className="px-3 py-1.5 text-xs border border-white/20 rounded-lg hover:border-purple-400 disabled:opacity-40 disabled:hover:border-white/20 transition-colors"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )}
                 </>
               )}
             </>
@@ -1140,6 +1342,8 @@ const AdminConsole = () => {
               v.uniqueCode.toLowerCase().includes(q) ||
               (v.phone ?? '').includes(q)
             );
+            const vendorTotalPages = Math.max(1, Math.ceil(filteredVendors.length / PAGE_SIZE));
+            const pagedVendors = filteredVendors.slice((vendorPage - 1) * PAGE_SIZE, vendorPage * PAGE_SIZE);
 
             return (
               <div className="space-y-6">
@@ -1190,11 +1394,11 @@ const AdminConsole = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          {filteredVendors.map((v, i) => {
+                          {pagedVendors.map((v, i) => {
                             const paid = v.paymentStatus === 'success' || v.paymentStatus === 'successful';
                             return (
                               <tr key={v.id} className="border-t border-white/5 hover:bg-white/5 transition-colors">
-                                <td className="px-3 py-3 text-gray-500 text-xs">{i + 1}</td>
+                                <td className="px-3 py-3 text-gray-500 text-xs">{(vendorPage - 1) * PAGE_SIZE + i + 1}</td>
                                 <td className="px-3 py-3 font-semibold text-white text-xs">{v.name}</td>
                                 <td className="px-3 py-3 text-gray-300 text-xs">{v.businessName}</td>
                                 <td className="px-3 py-3 text-gray-400 text-xs max-w-[140px] truncate">{v.category}</td>
@@ -1229,7 +1433,7 @@ const AdminConsole = () => {
 
                     {/* Mobile cards */}
                     <div className="lg:hidden space-y-3">
-                      {filteredVendors.map(v => {
+                      {pagedVendors.map(v => {
                         const paid = v.paymentStatus === 'success' || v.paymentStatus === 'successful';
                         return (
                           <div key={v.id} className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-2">
@@ -1263,6 +1467,26 @@ const AdminConsole = () => {
                         );
                       })}
                     </div>
+
+                    {vendorTotalPages > 1 && (
+                      <div className="flex items-center justify-center gap-3 pt-2">
+                        <button
+                          onClick={() => setVendorPage(p => Math.max(1, p - 1))}
+                          disabled={vendorPage === 1}
+                          className="px-3 py-1.5 text-xs border border-white/20 rounded-lg hover:border-purple-400 disabled:opacity-40 disabled:hover:border-white/20 transition-colors"
+                        >
+                          Prev
+                        </button>
+                        <span className="text-gray-400 text-xs">Page {vendorPage} of {vendorTotalPages}</span>
+                        <button
+                          onClick={() => setVendorPage(p => Math.min(vendorTotalPages, p + 1))}
+                          disabled={vendorPage === vendorTotalPages}
+                          className="px-3 py-1.5 text-xs border border-white/20 rounded-lg hover:border-purple-400 disabled:opacity-40 disabled:hover:border-white/20 transition-colors"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    )}
                   </>
                 )}
               </div>

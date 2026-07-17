@@ -64,33 +64,22 @@ router.post('/', async (req, res) => {
 
     // De-dupe abandoned attempts: if this same person (same phone + name) already
     // has an unpaid pending registration from an earlier attempt (e.g. they tried
-    // to pay, it failed, and they filled the form again instead of using "already
-    // registered"), update that row in place rather than inserting a new one.
-    // Matched on phone+name (not email) because one email may legitimately cover
-    // several different registrants. Only ever touches 'pending' rows — a
-    // successful (paid) registration is never overwritten.
+    // to pay, it failed, and filled the form again instead of using "already
+    // registered"), mark that old row 'abandoned' and fall through to insert a
+    // fresh row for the new attempt — instead of overwriting its tx_ref in place.
+    // Overwriting used to orphan the old tx_ref: if that earlier attempt actually
+    // succeeded on Flutterwave after the user retried (e.g. a delayed bank
+    // transfer confirmation), the webhook/sync for that tx_ref would find no
+    // matching row and silently do nothing. Marking it 'abandoned' keeps the row
+    // (and its tx_ref) reconcilable forever — sync already checks any row with
+    // payment_status != 'success'. Matched on phone+name (not email) because one
+    // email may legitimately cover several different registrants.
     if (phone && name) {
-      const dup = await pool.query(
-        `SELECT id FROM registrations WHERE phone = $1 AND LOWER(name) = LOWER($2) AND payment_status = 'pending' LIMIT 1`,
+      await pool.query(
+        `UPDATE registrations SET payment_status = 'abandoned'
+         WHERE phone = $1 AND LOWER(name) = LOWER($2) AND payment_status = 'pending'`,
         [phone, name]
       );
-      if (dup.rows.length > 0) {
-        const updated = await pool.query(
-          `UPDATE registrations SET
-             first_name = $1, middle_name = $2, last_name = $3, name = $4, dob = $5,
-             dcc_zone = $6, assembly_name = $7, denomination = $8, gender = $9,
-             phone = $10, email = $11, state = $12, status = $13, occupation = $14,
-             qualification = $15, unique_code = $16, tx_ref = $17, amount = $18
-           WHERE id = $19
-           RETURNING *`,
-          [
-            firstName, middleName || null, lastName, name, dob, dccZone, assemblyName || null,
-            denomination || null, gender, phone, email, state, status, occupation, qualification,
-            uniqueCode, txRef || null, amount || 3100, dup.rows[0].id,
-          ]
-        );
-        return res.status(200).json(toReg(updated.rows[0]));
-      }
     }
 
     const result = await pool.query(
@@ -268,6 +257,43 @@ router.get('/', requireAdmin, async (_req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch registrations' });
+  }
+});
+
+// GET /api/registrations/duplicate-drafts — admin only.
+// Finds every non-paid row (pending/abandoned) whose same phone+name already
+// has a *different* row marked payment_status='success'. These are leftover
+// duplicates from someone retrying registration after they'd already paid —
+// safe to review and delete since the person is already registered under the
+// paid row.
+router.get('/duplicate-drafts', requireAdmin, async (_req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT DISTINCT ON (r.id)
+        r.id, r.name, r.phone, r.email, r.tx_ref, r.payment_status, r.unique_code, r.registered_at,
+        p.id AS paid_id, p.unique_code AS paid_unique_code
+      FROM registrations r
+      JOIN registrations p
+        ON p.phone = r.phone AND LOWER(p.name) = LOWER(r.name)
+        AND p.payment_status = 'success' AND p.id <> r.id
+      WHERE r.payment_status != 'success'
+      ORDER BY r.id, p.id
+    `);
+    res.json(result.rows.map(row => ({
+      id: String(row.id),
+      name: row.name,
+      phone: row.phone,
+      email: row.email,
+      txRef: row.tx_ref,
+      paymentStatus: row.payment_status,
+      uniqueCode: row.unique_code,
+      registeredAt: row.registered_at,
+      paidId: String(row.paid_id),
+      paidUniqueCode: row.paid_unique_code,
+    })));
+  } catch (err) {
+    console.error('Duplicate drafts lookup error:', err);
+    res.status(500).json({ error: 'Failed to find duplicate drafts' });
   }
 });
 

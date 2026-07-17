@@ -33,6 +33,10 @@ router.post('/webhook', async (req, res) => {
           [status, String(data.id), data.tx_ref]
         );
 
+        if (updated.rows.length === 0) {
+          console.warn('FLW webhook: no vendor row matched tx_ref', data.tx_ref, '— transaction id', data.id);
+        }
+
         if (status === 'success' && updated.rows.length > 0) {
           const v = updated.rows[0];
           const vendor = {
@@ -51,6 +55,10 @@ router.post('/webhook', async (req, res) => {
            RETURNING name, state, dcc_zone, phone, email, unique_code`,
           [status, String(data.id), data.tx_ref]
         );
+
+        if (updated.rows.length === 0) {
+          console.warn('FLW webhook: no registration row matched tx_ref', data.tx_ref, '— transaction id', data.id);
+        }
 
         if (status === 'success' && updated.rows.length > 0) {
           const r = updated.rows[0];
@@ -175,6 +183,166 @@ router.post('/sync', async (req, res) => {
   } catch (err) {
     console.error('Payment sync error:', err);
     res.status(500).json({ error: 'Sync failed' });
+  }
+});
+
+// ── POST /api/payment/audit ── admin only ──────────────────────────────────
+// Unlike /sync (which only rechecks tx_refs we already have a DB row for),
+// this pulls Flutterwave's own list of successful transactions for a date
+// window and cross-checks each one against our DB. It catches the case that
+// bit us with Otitoju Seun: a real successful payment whose tx_ref was
+// overwritten/lost from our side entirely, so there was no local row left to
+// even attempt to sync. Rows found with a matching tx_ref that aren't yet
+// 'success' get auto-fixed exactly like /sync does.
+//
+// When no row matches by tx_ref, we fall back to matching by the customer's
+// phone/email (the same values our form sent to Flutterwave at checkout)
+// against any non-success row in the same table — that's exactly what
+// Otitoju's case turned out to be: not missing data, just filed under the
+// wrong tx_ref. If exactly one candidate matches, we repair it the same way
+// we did his manually. If zero or multiple rows match, we can't safely guess,
+// so it's reported as 'orphaned' for manual review — this is the genuinely
+// rare case where the initial pre-save itself never made it to the DB, and
+// we have no record of required fields (state, dcc_zone, etc.) to recreate it.
+router.post('/audit', async (req, res) => {
+  if (req.headers['x-admin-key'] !== process.env.ADMIN_PASSWORD) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const flwSecret = process.env.FLW_SECRET_KEY;
+  if (!flwSecret) {
+    return res.status(500).json({ error: 'FLW_SECRET_KEY is not set in Railway environment variables' });
+  }
+
+  const days = Math.min(parseInt(req.body?.days, 10) || 14, 90);
+  const from = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const to = new Date().toISOString().slice(0, 10);
+
+  try {
+    const transactions = [];
+    let page = 1;
+    while (page <= 20) {
+      const flwRes = await fetch(
+        `https://api.flutterwave.com/v3/transactions?from=${from}&to=${to}&status=successful&page=${page}`,
+        { headers: { Authorization: `Bearer ${flwSecret}` } }
+      );
+      const body = await flwRes.json();
+      if (body.status !== 'success' || !Array.isArray(body.data) || body.data.length === 0) break;
+      transactions.push(...body.data);
+      const totalPages = body.meta?.page_info?.total_pages;
+      if (!totalPages || page >= totalPages) break;
+      page++;
+    }
+
+    const fixed = [];
+    const orphaned = [];
+
+    for (const txn of transactions) {
+      const txRef = txn.tx_ref;
+      if (!txRef) continue;
+      const isVendor = String(txRef).startsWith('CACVENDOR-');
+
+      const existing = isVendor
+        ? await pool.query('SELECT id, payment_status FROM vendors WHERE tx_ref = $1', [txRef])
+        : await pool.query('SELECT id, payment_status FROM registrations WHERE tx_ref = $1', [txRef]);
+
+      let dbRow = existing.rows[0];
+      let matchedBy = 'tx_ref';
+
+      if (!dbRow) {
+        const email = txn.customer?.email;
+        const phone = txn.customer?.phone_number;
+
+        if (email || phone) {
+          const candidates = isVendor
+            ? await pool.query(
+                `SELECT id, payment_status FROM vendors
+                 WHERE payment_status != 'success' AND (phone = $1 OR LOWER(email) = LOWER($2))`,
+                [phone || null, email || null]
+              )
+            : await pool.query(
+                `SELECT id, payment_status FROM registrations
+                 WHERE payment_status != 'success' AND (phone = $1 OR LOWER(email) = LOWER($2))`,
+                [phone || null, email || null]
+              );
+
+          if (candidates.rows.length === 1) {
+            dbRow = candidates.rows[0];
+            matchedBy = 'phone/email';
+            const setTxRef = isVendor
+              ? await pool.query('UPDATE vendors SET tx_ref = $1 WHERE id = $2', [txRef, dbRow.id])
+              : await pool.query('UPDATE registrations SET tx_ref = $1 WHERE id = $2', [txRef, dbRow.id]);
+            void setTxRef;
+          } else {
+            orphaned.push({
+              tx_ref: txRef,
+              flw_transaction_id: txn.id,
+              amount: txn.amount,
+              email, name: txn.customer?.name, phone,
+              paid_at: txn.created_at,
+              table: isVendor ? 'vendors' : 'registrations',
+              candidateRowsFound: candidates.rows.length,
+            });
+            continue;
+          }
+        } else {
+          orphaned.push({
+            tx_ref: txRef,
+            flw_transaction_id: txn.id,
+            amount: txn.amount,
+            email, name: txn.customer?.name, phone,
+            paid_at: txn.created_at,
+            table: isVendor ? 'vendors' : 'registrations',
+            candidateRowsFound: 0,
+          });
+          continue;
+        }
+      }
+
+      if (dbRow.payment_status === 'success') continue;
+
+      if (isVendor) {
+        const updated = await pool.query(
+          `UPDATE vendors SET payment_status = 'success', payment_ref = $1 WHERE id = $2
+           RETURNING name, business_name, category, phone, email, unique_code, amount`,
+          [String(txn.id), dbRow.id]
+        );
+        fixed.push({ tx_ref: txRef, table: 'vendors', name: updated.rows[0]?.name, matchedBy });
+        const v = updated.rows[0];
+        if (v?.email) {
+          sendVendorSlipEmail({
+            name: v.name, businessName: v.business_name, category: v.category,
+            phone: v.phone, email: v.email, uniqueCode: v.unique_code, amount: v.amount,
+          }).catch(err => console.error('Audit vendor email failed:', err.message));
+        }
+      } else {
+        const updated = await pool.query(
+          `UPDATE registrations SET payment_status = 'success', payment_ref = $1 WHERE id = $2
+           RETURNING name, state, dcc_zone, phone, email, unique_code`,
+          [String(txn.id), dbRow.id]
+        );
+        fixed.push({ tx_ref: txRef, table: 'registrations', name: updated.rows[0]?.name, matchedBy });
+        const r = updated.rows[0];
+        if (r?.email) {
+          sendSlipEmail({
+            name: r.name, state: r.state, dccZone: r.dcc_zone,
+            phone: r.phone, email: r.email, uniqueCode: r.unique_code,
+          }).catch(err => console.error('Audit email failed:', err.message));
+        }
+      }
+    }
+
+    res.json({
+      windowDays: days,
+      checked: transactions.length,
+      fixed: fixed.length,
+      fixedDetails: fixed,
+      orphaned: orphaned.length,
+      orphanedDetails: orphaned,
+    });
+  } catch (err) {
+    console.error('Payment audit error:', err);
+    res.status(500).json({ error: 'Audit failed' });
   }
 });
 
