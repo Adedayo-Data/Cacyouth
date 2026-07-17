@@ -623,7 +623,7 @@ const AdminConsole = () => {
 
       <div className="no-print min-h-screen bg-gray-950 text-white">
 
-        <header className="bg-black/50 border-b border-white/10 px-4 sm:px-6 py-4 flex justify-between items-center gap-3 sticky top-0 z-10 backdrop-blur-md">
+        <header className="bg-black/50 border-b border-white/10 px-4 sm:px-6 py-4 flex flex-wrap justify-between items-center gap-3 sticky top-0 z-10 backdrop-blur-md">
           <div className="flex items-center gap-3 min-w-0">
             <img src="/favicon.png" alt="CACYOF" className="h-9 w-9 shrink-0 object-contain" />
             <div className="min-w-0">
@@ -631,7 +631,7 @@ const AdminConsole = () => {
               <p className="text-gray-400 text-xs mt-0.5 hidden sm:block">2026 Youth Conference Management</p>
             </div>
           </div>
-          <div className="flex gap-2 shrink-0 flex-wrap justify-end">
+          <div className="flex gap-2 flex-wrap justify-start sm:justify-end w-full sm:w-auto">
             <button
               onClick={handleSyncPayments}
               disabled={syncing}
