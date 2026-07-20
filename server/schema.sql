@@ -54,9 +54,12 @@ DO $$ BEGIN
   END IF;
 END $$;
 
--- Prevent duplicate registrations per payment transaction.
--- NULL tx_ref values are excluded so pre-saves without a ref are unaffected.
-CREATE UNIQUE INDEX IF NOT EXISTS registrations_tx_ref_unique
+-- Index tx_ref for lookup speed. NOT unique: a bulk group registration (one
+-- payment covering many people) intentionally gives every row in the group
+-- the same tx_ref, so the Flutterwave webhook's single UPDATE...WHERE tx_ref=$1
+-- flips the whole group to 'success' at once. See registrations.js POST /bulk.
+DROP INDEX IF EXISTS registrations_tx_ref_unique;
+CREATE INDEX IF NOT EXISTS registrations_tx_ref_idx
   ON registrations (tx_ref)
   WHERE tx_ref IS NOT NULL;
 

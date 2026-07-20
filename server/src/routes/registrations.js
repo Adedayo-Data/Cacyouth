@@ -102,6 +102,61 @@ router.post('/', async (req, res) => {
   }
 });
 
+// POST /api/registrations/bulk — pre-save a whole group before one shared payment.
+// A group leader pays once for N people; every row gets the SAME tx_ref so the
+// Flutterwave webhook's single UPDATE...WHERE tx_ref=$1 naturally flips all N rows
+// to 'success' at once (see payment.js, which now loops over every returned row
+// to send each person their own slip email). Wrapped in a transaction so a bad
+// row can't leave a half-created group sitting in the DB.
+router.post('/bulk', async (req, res) => {
+  const { registrants, txRef } = req.body;
+
+  if (!txRef) return res.status(400).json({ error: 'txRef is required' });
+  if (!Array.isArray(registrants) || registrants.length === 0) {
+    return res.status(400).json({ error: 'registrants must be a non-empty array' });
+  }
+  if (registrants.length > 100) {
+    return res.status(400).json({ error: 'Bulk groups are capped at 100 people per payment' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const inserted = [];
+    for (const r of registrants) {
+      const {
+        firstName, middleName, lastName, name, dob, dccZone, assemblyName, denomination, gender,
+        phone, email, state, status, occupation, qualification, uniqueCode, amount,
+      } = r;
+
+      const result = await client.query(
+        `INSERT INTO registrations
+          (first_name, middle_name, last_name, name, dob, dcc_zone, assembly_name, denomination, gender,
+           phone, email, state, status, occupation, qualification,
+           unique_code, tx_ref, amount, payment_status)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+         RETURNING *`,
+        [
+          firstName, middleName || null, lastName, name, dob, dccZone, assemblyName || null,
+          denomination || null, gender, phone, email, state, status, occupation, qualification,
+          uniqueCode, txRef, amount || 3100, 'pending',
+        ]
+      );
+      inserted.push(toReg(result.rows[0]));
+    }
+
+    await client.query('COMMIT');
+    res.status(201).json(inserted);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Bulk create registration error:', err);
+    res.status(500).json({ error: 'Failed to save group registration' });
+  } finally {
+    client.release();
+  }
+});
+
 // POST /api/registrations/resume — check payment status and return data needed to resume payment.
 // Returns: { status: 'paid' } | { status: 'pending', name, email, phone, state, txRef, uniqueCode, amount } | { status: 'not_found' }
 router.post('/resume', async (req, res) => {
@@ -121,16 +176,21 @@ router.post('/resume', async (req, res) => {
 
     if (paid.rows.length > 0) return res.json({ status: 'paid' });
 
+    // Bulk-group rows (shared tx_ref across many people) are excluded here on purpose:
+    // resuming one person's payment individually would let them pay a single person's
+    // fee while the webhook's tx_ref match flips the WHOLE group to 'success'.
     const pending = email
       ? await pool.query(
           `SELECT name, email, phone, state, tx_ref, unique_code, amount
            FROM registrations WHERE LOWER(email) = LOWER($1) AND payment_status = 'pending'
+           AND tx_ref NOT LIKE 'CACBULK-%'
            ORDER BY registered_at DESC LIMIT 1`,
           [email.trim()]
         )
       : await pool.query(
           `SELECT name, email, phone, state, tx_ref, unique_code, amount
            FROM registrations WHERE phone = $1 AND payment_status = 'pending'
+           AND tx_ref NOT LIKE 'CACBULK-%'
            ORDER BY registered_at DESC LIMIT 1`,
           [phone.trim()]
         );

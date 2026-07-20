@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { generateUniqueCode } from '../utils/codeGenerator';
+import { CONFERENCE_FEE, ZONES_BY_STATE, OTHER_STATES, type SelectedState } from '../utils/conferenceData';
 
 const API = import.meta.env.VITE_API_URL ?? '';
 
-const CONFERENCE_FEE = 3100;
 const PLATFORM_FEE   = 200;
 
 declare global {
@@ -12,35 +12,6 @@ declare global {
 }
 
 // ── Participant ───────────────────────────────────────────────────────────────
-
-type SelectedState = 'FCT' | 'NIGER' | 'KADUNA' | 'OTHER';
-
-const ZONES_BY_STATE: Record<Exclude<SelectedState, 'OTHER'>, string[]> = {
-  FCT: [
-    'FCC DCC', 'ADCC DCC', 'NYANYA DCC', 'GWAGWALADA DCC', 'KUJE DCC',
-    'L/WATER DCC', 'KUBWA DCC', 'BWARI ZONE', 'LUGBE DCC', 'PRINCE OF PEACE ZONE',
-    'KWALI ZONE', 'MERCY ZONE', 'MARARABA ZONE', 'MAPAPE ZONE', 'OKEIYIN ZONE',
-    'CHRIST THE KING DCC', 'KARU DCC', 'MIRACLE DCC', 'DUTSE DCC', 'GLORY ZONE',
-    'ALL SAINT DCC', 'PRAISE DCC DCC', 'DAGIRI ZONE', 'TRUTH AND POWER ZONE',
-    'ADO ZONE', 'FULFILMENT ZONE', 'LIFE ZONE', 'PASALI ZONE',
-    'POSSIBILITY ZONE', 'SALVATION ZONE', 'ZUBA ZONE',
-  ],
-  NIGER: [
-    'SULEJA DCC', 'TUNGA DCC', 'GAURAKA DCC', 'BIDA DCC',
-    'NIGER DCC', 'KWAMBA DCC', 'KONTAGORA ZONE', 'MANDALA ZONE',
-  ],
-  KADUNA: [
-    'KAWO DCC', 'KAKURI DCC', 'SAMARU ZONE', 'KOSEUNTI ZONE',
-    'ZION ZONE', 'KAFANCHAN ZONE', 'KADUNA DCC', 'TUNDUNWADA DCC', 'ZARIA DCC',
-  ],
-};
-
-const OTHER_STATES = [
-  'Abia','Adamawa','Akwa Ibom','Anambra','Bauchi','Bayelsa','Benue','Borno',
-  'Cross River','Delta','Ebonyi','Edo','Ekiti','Enugu','Gombe','Imo','Jigawa',
-  'Kano','Katsina','Kebbi','Kogi','Kwara','Lagos','Nasarawa','Ogun','Ondo',
-  'Osun','Oyo','Plateau','Rivers','Sokoto','Taraba','Yobe','Zamfara',
-];
 
 interface FormData {
   firstName: string; middleName: string; lastName: string; dob: string;
@@ -694,8 +665,8 @@ const Conference = () => {
           </button>
         </div>
 
-        {/* Already registered */}
-        <div className="mb-5 text-center">
+        {/* Already registered / group registration */}
+        <div className="mb-5 text-center space-y-2">
           <a
             href={isParticipant ? '/conference/slip' : '/vendor/slip'}
             className="inline-flex items-center gap-1.5 text-sm text-purple-400 hover:text-purple-300 transition-colors"
@@ -705,6 +676,16 @@ const Conference = () => {
             </svg>
             Already registered? Get your slip
           </a>
+          {isParticipant && (
+            <p>
+              <a href="/conference/bulk" className="inline-flex items-center gap-1.5 text-sm text-purple-400 hover:text-purple-300 transition-colors">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 100-8 4 4 0 000 8zm6 3c0-1.657-2.686-3-6-3s-6 1.343-6 3" />
+                </svg>
+                Registering a group? Pay once for everyone →
+              </a>
+            </p>
+          )}
         </div>
 
         {/* Fee banner */}

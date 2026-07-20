@@ -60,14 +60,16 @@ router.post('/webhook', async (req, res) => {
           console.warn('FLW webhook: no registration row matched tx_ref', data.tx_ref, '— transaction id', data.id);
         }
 
-        if (status === 'success' && updated.rows.length > 0) {
-          const r = updated.rows[0];
-          const reg = {
-            name: r.name, state: r.state, dccZone: r.dcc_zone,
-            phone: r.phone, email: r.email, uniqueCode: r.unique_code,
-          };
-          if (reg.email) {
-            sendSlipEmail(reg).catch(err => console.error('Webhook email failed:', err.message));
+        // A bulk group registration shares one tx_ref across many rows, so this
+        // UPDATE can return more than one row — loop so every person in the group
+        // gets their own slip email, not just the first.
+        if (status === 'success') {
+          for (const r of updated.rows) {
+            if (!r.email) continue;
+            sendSlipEmail({
+              name: r.name, state: r.state, dccZone: r.dcc_zone,
+              phone: r.phone, email: r.email, uniqueCode: r.unique_code,
+            }).catch(err => console.error('Webhook email failed:', err.message));
           }
         }
       }
@@ -246,10 +248,13 @@ router.post('/audit', async (req, res) => {
         ? await pool.query('SELECT id, payment_status FROM vendors WHERE tx_ref = $1', [txRef])
         : await pool.query('SELECT id, payment_status FROM registrations WHERE tx_ref = $1', [txRef]);
 
-      let dbRow = existing.rows[0];
+      // A bulk group registration shares one tx_ref across many rows — fix every
+      // non-success row that matched, not just the first (that used to silently
+      // skip everyone in a group after the first person).
+      let dbRows = existing.rows.filter(r => r.payment_status !== 'success');
       let matchedBy = 'tx_ref';
 
-      if (!dbRow) {
+      if (existing.rows.length === 0) {
         const email = txn.customer?.email;
         const phone = txn.customer?.phone_number;
 
@@ -267,11 +272,11 @@ router.post('/audit', async (req, res) => {
               );
 
           if (candidates.rows.length === 1) {
-            dbRow = candidates.rows[0];
+            dbRows = candidates.rows;
             matchedBy = 'phone/email';
             const setTxRef = isVendor
-              ? await pool.query('UPDATE vendors SET tx_ref = $1 WHERE id = $2', [txRef, dbRow.id])
-              : await pool.query('UPDATE registrations SET tx_ref = $1 WHERE id = $2', [txRef, dbRow.id]);
+              ? await pool.query('UPDATE vendors SET tx_ref = $1 WHERE id = $2', [txRef, dbRows[0].id])
+              : await pool.query('UPDATE registrations SET tx_ref = $1 WHERE id = $2', [txRef, dbRows[0].id]);
             void setTxRef;
           } else {
             orphaned.push({
@@ -299,35 +304,35 @@ router.post('/audit', async (req, res) => {
         }
       }
 
-      if (dbRow.payment_status === 'success') continue;
-
-      if (isVendor) {
-        const updated = await pool.query(
-          `UPDATE vendors SET payment_status = 'success', payment_ref = $1 WHERE id = $2
-           RETURNING name, business_name, category, phone, email, unique_code, amount`,
-          [String(txn.id), dbRow.id]
-        );
-        fixed.push({ tx_ref: txRef, table: 'vendors', name: updated.rows[0]?.name, matchedBy });
-        const v = updated.rows[0];
-        if (v?.email) {
-          sendVendorSlipEmail({
-            name: v.name, businessName: v.business_name, category: v.category,
-            phone: v.phone, email: v.email, uniqueCode: v.unique_code, amount: v.amount,
-          }).catch(err => console.error('Audit vendor email failed:', err.message));
-        }
-      } else {
-        const updated = await pool.query(
-          `UPDATE registrations SET payment_status = 'success', payment_ref = $1 WHERE id = $2
-           RETURNING name, state, dcc_zone, phone, email, unique_code`,
-          [String(txn.id), dbRow.id]
-        );
-        fixed.push({ tx_ref: txRef, table: 'registrations', name: updated.rows[0]?.name, matchedBy });
-        const r = updated.rows[0];
-        if (r?.email) {
-          sendSlipEmail({
-            name: r.name, state: r.state, dccZone: r.dcc_zone,
-            phone: r.phone, email: r.email, uniqueCode: r.unique_code,
-          }).catch(err => console.error('Audit email failed:', err.message));
+      for (const dbRow of dbRows) {
+        if (isVendor) {
+          const updated = await pool.query(
+            `UPDATE vendors SET payment_status = 'success', payment_ref = $1 WHERE id = $2
+             RETURNING name, business_name, category, phone, email, unique_code, amount`,
+            [String(txn.id), dbRow.id]
+          );
+          fixed.push({ tx_ref: txRef, table: 'vendors', name: updated.rows[0]?.name, matchedBy });
+          const v = updated.rows[0];
+          if (v?.email) {
+            sendVendorSlipEmail({
+              name: v.name, businessName: v.business_name, category: v.category,
+              phone: v.phone, email: v.email, uniqueCode: v.unique_code, amount: v.amount,
+            }).catch(err => console.error('Audit vendor email failed:', err.message));
+          }
+        } else {
+          const updated = await pool.query(
+            `UPDATE registrations SET payment_status = 'success', payment_ref = $1 WHERE id = $2
+             RETURNING name, state, dcc_zone, phone, email, unique_code`,
+            [String(txn.id), dbRow.id]
+          );
+          fixed.push({ tx_ref: txRef, table: 'registrations', name: updated.rows[0]?.name, matchedBy });
+          const r = updated.rows[0];
+          if (r?.email) {
+            sendSlipEmail({
+              name: r.name, state: r.state, dccZone: r.dcc_zone,
+              phone: r.phone, email: r.email, uniqueCode: r.unique_code,
+            }).catch(err => console.error('Audit email failed:', err.message));
+          }
         }
       }
     }

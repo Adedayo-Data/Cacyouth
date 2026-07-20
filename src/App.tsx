@@ -10,6 +10,7 @@ import Contact from "./pages/Contact.tsx";
 import Partnership from "./pages/Partnership.tsx";
 import ShowcaseBusiness from "./pages/ShowcaseBusiness.tsx";
 import Conference from "./pages/Conference.tsx";
+import BulkRegistration from "./pages/BulkRegistration.tsx";
 import ConferenceSlip from "./pages/ConferenceSlip.tsx";
 import VendorSlip from "./pages/VendorSlip.tsx";
 import VendorStaffPortal from "./pages/VendorStaffPortal.tsx";
@@ -39,6 +40,7 @@ const App = () => {
           <Route path="/contact" element={<Contact />} />
           <Route path="/showcase" element={<ShowcaseBusiness />} />
           <Route path="/conference" element={<Conference />} />
+          <Route path="/conference/bulk" element={<BulkRegistration />} />
           <Route path="/conference/slip" element={<ConferenceSlip />} />
           <Route path="/vendor/slip" element={<VendorSlip />} />
         </Route>
