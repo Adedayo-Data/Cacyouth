@@ -189,22 +189,34 @@ const Conference = () => {
     const uniqueCode = generateUniqueCode(stateForCode);
     const txRef = `CACYOUTH-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 
+    const trySave = async () => {
+      try {
+        const res = await fetch(`${API}/api/registrations`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...form, name: fullName, uniqueCode,
+            assemblyName: form.assemblyName || null,
+            txRef, amount: CONFERENCE_FEE, paymentStatus: 'pending',
+          }),
+        });
+        return res.ok;
+      } catch (err) { console.warn('Pre-save network error:', err); return false; }
+    };
+
     setSubmitting(true);
-    let preSaved = false;
-    try {
-      const res = await fetch(`${API}/api/registrations`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...form, name: fullName, uniqueCode,
-          assemblyName: form.assemblyName || null,
-          txRef, amount: CONFERENCE_FEE, paymentStatus: 'pending',
-        }),
-      });
-      preSaved = res.ok;
-      if (!res.ok) console.warn('Pre-save failed:', res.status);
-    } catch (err) { console.warn('Pre-save network error:', err); }
+    // One retry: a failed save here means checkout must not open at all — if
+    // it did and the payment still went through, there'd be no row anywhere
+    // for it to attach to (the exact bug behind several stuck/duplicate
+    // registrations we've had to fix by hand).
+    let preSaved = await trySave();
+    if (!preSaved) preSaved = await trySave();
     setSubmitting(false);
+
+    if (!preSaved) {
+      alert('We could not reach our server to save your details. Please check your connection and try again — you have not been charged.');
+      return;
+    }
 
     window.FlutterwaveCheckout?.({
       public_key: import.meta.env.VITE_FLW_PUBLIC_KEY,
@@ -224,17 +236,6 @@ const Conference = () => {
           sessionStorage.setItem('cac_slip', JSON.stringify({
             name: fullName, state: form.state, dccZone: form.dccZone, phone: form.phone, uniqueCode,
           }));
-          if (!preSaved) {
-            fetch(`${API}/api/registrations`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                ...form, name: fullName, uniqueCode,
-                assemblyName: form.assemblyName || null,
-                txRef: response.tx_ref, amount: CONFERENCE_FEE,
-              }),
-            }).catch(err => console.error('Registration save error:', err));
-          }
           setTimeout(() => { window.location.href = '/conference/slip'; }, 2000);
         }
       },
@@ -295,23 +296,31 @@ const Conference = () => {
     const uniqueCode = generateUniqueCode('VND');
     const txRef = `CACVENDOR-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 
+    const trySaveVendor = async () => {
+      try {
+        const res = await fetch(`${API}/api/vendors`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            firstName: vendorForm.firstName, lastName: vendorForm.lastName,
+            name: vendorName, businessName: vendorForm.businessName,
+            phone: vendorForm.phone, email: vendorForm.email,
+            category: vendorForm.category, uniqueCode, txRef, amount: vendorTotal,
+          }),
+        });
+        return res.ok;
+      } catch (err) { console.warn('Vendor pre-save error:', err); return false; }
+    };
+
     setVendorSubmitting(true);
-    let preSaved = false;
-    try {
-      const res = await fetch(`${API}/api/vendors`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          firstName: vendorForm.firstName, lastName: vendorForm.lastName,
-          name: vendorName, businessName: vendorForm.businessName,
-          phone: vendorForm.phone, email: vendorForm.email,
-          category: vendorForm.category, uniqueCode, txRef, amount: vendorTotal,
-        }),
-      });
-      preSaved = res.ok;
-      if (!res.ok) console.warn('Vendor pre-save failed:', res.status);
-    } catch (err) { console.warn('Vendor pre-save error:', err); }
+    let preSaved = await trySaveVendor();
+    if (!preSaved) preSaved = await trySaveVendor();
     setVendorSubmitting(false);
+
+    if (!preSaved) {
+      alert('We could not reach our server to save your details. Please check your connection and try again — you have not been charged.');
+      return;
+    }
 
     window.FlutterwaveCheckout?.({
       public_key: import.meta.env.VITE_FLW_PUBLIC_KEY,
@@ -332,18 +341,6 @@ const Conference = () => {
             category: vendorForm.category, phone: vendorForm.phone,
             uniqueCode, amount: vendorTotal,
           }));
-          if (!preSaved) {
-            fetch(`${API}/api/vendors`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                firstName: vendorForm.firstName, lastName: vendorForm.lastName,
-                name: vendorName, businessName: vendorForm.businessName,
-                phone: vendorForm.phone, email: vendorForm.email,
-                category: vendorForm.category, uniqueCode, txRef: response.tx_ref, amount: vendorTotal,
-              }),
-            }).catch(err => console.error('Vendor save error:', err));
-          }
           setTimeout(() => { window.location.href = '/vendor/slip'; }, 2000);
         }
       },
