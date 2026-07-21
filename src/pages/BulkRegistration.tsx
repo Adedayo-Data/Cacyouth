@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { generateUniqueCode } from '../utils/codeGenerator';
 import { ZONES_BY_STATE, OTHER_STATES, CONFERENCE_FEE, type SelectedState } from '../utils/conferenceData';
 
@@ -46,6 +46,11 @@ const BulkRegistration = () => {
   const [errors, setErrors] = useState<Partial<Record<FormField, string>>>({});
   const [group, setGroup] = useState<Registrant[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  // Ref, not just state: React state updates aren't synchronous, so a rapid
+  // double-click could fire handlePay twice before the button visually
+  // disables — that would submit the same group (same unique_codes) twice
+  // and hit the unique_code constraint on the second insert.
+  const payInFlight = useRef(false);
   const [paid, setPaid] = useState(false);
 
   const inputCls = (err: boolean) =>
@@ -126,10 +131,12 @@ const BulkRegistration = () => {
   };
 
   const handlePay = async () => {
+    if (payInFlight.current) return;
     if (group.length === 0) { alert('Add at least one person to the group first.'); return; }
     if (!validatePayer()) return;
     if (!scriptReady) { alert('Payment is still loading. Please try again in a moment.'); return; }
 
+    payInFlight.current = true;
     const txRef = `CACBULK-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 
     setSubmitting(true);
@@ -144,10 +151,15 @@ const BulkRegistration = () => {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Could not save the group. Please try again.');
+        const base = data.error || 'Could not save the group. Please try again.';
+        const withDetail = data.detail
+          ? `${base} (${data.failedName ? `${data.failedName}: ` : ''}${data.detail})`
+          : base;
+        throw new Error(withDetail);
       }
     } catch (err) {
       setSubmitting(false);
+      payInFlight.current = false;
       alert(err instanceof Error ? err.message : 'Could not save the group. Please try again.');
       return;
     }
@@ -170,7 +182,7 @@ const BulkRegistration = () => {
           setPaid(true);
         }
       },
-      onclose: () => {},
+      onclose: () => { payInFlight.current = false; },
     });
   };
 

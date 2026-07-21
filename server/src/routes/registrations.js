@@ -120,29 +120,59 @@ router.post('/bulk', async (req, res) => {
   }
 
   const client = await pool.connect();
+  let currentIndex = -1;
   try {
     await client.query('BEGIN');
 
     const inserted = [];
-    for (const r of registrants) {
+    for (let i = 0; i < registrants.length; i++) {
+      currentIndex = i;
+      const r = registrants[i];
       const {
         firstName, middleName, lastName, name, dob, dccZone, assemblyName, denomination, gender,
         phone, email, state, status, occupation, qualification, uniqueCode, amount,
       } = r;
 
-      const result = await client.query(
-        `INSERT INTO registrations
-          (first_name, middle_name, last_name, name, dob, dcc_zone, assembly_name, denomination, gender,
-           phone, email, state, status, occupation, qualification,
-           unique_code, tx_ref, amount, payment_status)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
-         RETURNING *`,
-        [
-          firstName, middleName || null, lastName, name, dob, dccZone, assemblyName || null,
-          denomination || null, gender, phone, email, state, status, occupation, qualification,
-          uniqueCode, txRef, amount || 3100, 'pending',
-        ]
-      );
+      // Idempotent per person: if the payer's checkout didn't complete (closed
+      // the modal, card declined, network hiccup) and they click Pay again,
+      // the browser still holds the SAME unique_code for each person from the
+      // first attempt. Re-inserting would violate unique_code's uniqueness on
+      // every retry — instead, reuse that row and just point it at the new
+      // tx_ref, exactly like the solo registration flow already does by tx_ref.
+      const existing = await client.query('SELECT * FROM registrations WHERE unique_code = $1', [uniqueCode]);
+
+      let result;
+      if (existing.rows.length > 0 && existing.rows[0].payment_status !== 'success') {
+        result = await client.query(
+          `UPDATE registrations SET
+             first_name=$1, middle_name=$2, last_name=$3, name=$4, dob=$5, dcc_zone=$6,
+             assembly_name=$7, denomination=$8, gender=$9, phone=$10, email=$11, state=$12,
+             status=$13, occupation=$14, qualification=$15, tx_ref=$16, amount=$17
+           WHERE id=$18
+           RETURNING *`,
+          [
+            firstName, middleName || null, lastName, name, dob, dccZone, assemblyName || null,
+            denomination || null, gender, phone, email, state, status, occupation, qualification,
+            txRef, amount || 3100, existing.rows[0].id,
+          ]
+        );
+      } else if (existing.rows.length > 0) {
+        result = existing; // already paid under this code — carry it through unchanged
+      } else {
+        result = await client.query(
+          `INSERT INTO registrations
+            (first_name, middle_name, last_name, name, dob, dcc_zone, assembly_name, denomination, gender,
+             phone, email, state, status, occupation, qualification,
+             unique_code, tx_ref, amount, payment_status)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+           RETURNING *`,
+          [
+            firstName, middleName || null, lastName, name, dob, dccZone, assemblyName || null,
+            denomination || null, gender, phone, email, state, status, occupation, qualification,
+            uniqueCode, txRef, amount || 3100, 'pending',
+          ]
+        );
+      }
       inserted.push(toReg(result.rows[0]));
     }
 
@@ -150,8 +180,18 @@ router.post('/bulk', async (req, res) => {
     res.status(201).json(inserted);
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error('Bulk create registration error:', err);
-    res.status(500).json({ error: 'Failed to save group registration' });
+    const failedRegistrant = registrants[currentIndex];
+    console.error(
+      'Bulk create registration error at index', currentIndex,
+      'name:', failedRegistrant?.name, 'uniqueCode:', failedRegistrant?.uniqueCode,
+      '—', err.message
+    );
+    res.status(500).json({
+      error: 'Failed to save group registration',
+      detail: err.message,
+      failedAt: currentIndex,
+      failedName: failedRegistrant?.name,
+    });
   } finally {
     client.release();
   }
