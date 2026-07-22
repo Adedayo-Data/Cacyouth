@@ -1236,10 +1236,10 @@ const AdminConsole = () => {
                 ) : (() => {
                   const q = slipSearch.trim().toLowerCase();
                   const matches = registrations.filter(r =>
-                    r.name.toLowerCase().includes(q)
+                    isPaid(r) && r.name.toLowerCase().includes(q)
                   );
                   if (matches.length === 0) {
-                    return <p className="text-gray-500 text-sm text-center py-6">No registrants found matching "{slipSearch}".</p>;
+                    return <p className="text-gray-500 text-sm text-center py-6">No paid registrants found matching "{slipSearch}".</p>;
                   }
                   return (
                     <div className="space-y-3">
