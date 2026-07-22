@@ -208,6 +208,9 @@ const BulkRegistration = () => {
           <p className="text-gray-400 text-sm sm:text-base leading-relaxed mb-6">
             We're not accepting new group registrations right now. Please check back shortly.
           </p>
+          <a href="/conference/slip" className="inline-flex items-center gap-1.5 text-sm text-purple-400 hover:text-purple-300 transition-colors">
+            Already registered? Get your slip →
+          </a>
         </div>
       </div>
     );
