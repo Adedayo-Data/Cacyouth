@@ -233,19 +233,34 @@ router.post('/audit', async (req, res) => {
   const to = new Date().toISOString().slice(0, 10);
 
   try {
-    const transactions = [];
-    let page = 1;
-    while (page <= 20) {
+    const fetchPage = async (page) => {
       const flwRes = await fetch(
         `https://api.flutterwave.com/v3/transactions?from=${from}&to=${to}&status=successful&page=${page}`,
         { headers: { Authorization: `Bearer ${flwSecret}` } }
       );
-      const body = await flwRes.json();
-      if (body.status !== 'success' || !Array.isArray(body.data) || body.data.length === 0) break;
-      transactions.push(...body.data);
-      const totalPages = body.meta?.page_info?.total_pages;
-      if (!totalPages || page >= totalPages) break;
-      page++;
+      return flwRes.json();
+    };
+
+    // A fixed 20-page cap used to silently truncate this list once volume grew
+    // (20 pages x Flutterwave's 10/page = 200 transactions) — anything past
+    // that, including genuinely orphaned payments, was never even looked at.
+    // Fetch page 1 to learn the real total, then pull the rest CONCURRENTLY
+    // (same fix as /sync) so covering hundreds of pages doesn't time out.
+    const transactions = [];
+    const firstPage = await fetchPage(1);
+    if (firstPage.status === 'success' && Array.isArray(firstPage.data)) {
+      transactions.push(...firstPage.data);
+      const PAGE_SAFETY_CEILING = 300;
+      const totalPages = Math.min(firstPage.meta?.page_info?.total_pages || 1, PAGE_SAFETY_CEILING);
+      const PAGE_CONCURRENCY = 10;
+      const remainingPages = Array.from({ length: Math.max(0, totalPages - 1) }, (_, i) => i + 2);
+      for (let i = 0; i < remainingPages.length; i += PAGE_CONCURRENCY) {
+        const batch = remainingPages.slice(i, i + PAGE_CONCURRENCY);
+        const results = await Promise.all(batch.map(fetchPage));
+        for (const body of results) {
+          if (body.status === 'success' && Array.isArray(body.data)) transactions.push(...body.data);
+        }
+      }
     }
 
     const fixed = [];
