@@ -95,6 +95,16 @@ const Conference = () => {
   const [activeType, setActiveType] = useState<'participant' | 'vendor'>('participant');
   const [scriptReady, setScriptReady] = useState(false);
 
+  // null = still checking; fails closed on a network error so a down backend
+  // never accidentally shows the form as open.
+  const [registrationOpen, setRegistrationOpen] = useState<boolean | null>(null);
+  useEffect(() => {
+    fetch(`${API}/api/registrations/status`)
+      .then(res => res.json())
+      .then(data => setRegistrationOpen(!!data.open))
+      .catch(() => setRegistrationOpen(false));
+  }, []);
+
   useEffect(() => {
     if (window.FlutterwaveCheckout) { setScriptReady(true); return; }
     const s = document.createElement('script');
@@ -605,6 +615,24 @@ const Conference = () => {
       </div>
     );
   };
+
+  if (registrationOpen === null) {
+    return <div className="min-h-screen bg-black-light" />;
+  }
+
+  if (registrationOpen === false) {
+    return (
+      <div className="min-h-screen bg-black-light flex items-center justify-center px-4 py-20">
+        <div className="max-w-md w-full text-center">
+          <div className="w-16 h-16 rounded-full bg-purple-600/20 border border-purple-500/40 flex items-center justify-center mx-auto mb-6 text-3xl">🚧</div>
+          <h1 className="text-white text-2xl sm:text-3xl font-black mb-3">Registration Temporarily Closed</h1>
+          <p className="text-gray-400 text-sm sm:text-base leading-relaxed mb-6">
+            We're not accepting new conference or vendor registrations right now. Please check back shortly.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // ── Step indicator ─────────────────────────────────────────────────────────
   const isParticipant = activeType === 'participant';

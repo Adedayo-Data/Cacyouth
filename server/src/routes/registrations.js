@@ -3,6 +3,7 @@ const router = express.Router();
 const pool = require('../db');
 const { sendSlipEmail } = require('../utils/email');
 const { resendAllSlips } = require('../utils/resend');
+const { isRegistrationOpen, requireRegistrationOpen } = require('../utils/registrationStatus');
 
 const toReg = (row) => ({
   id: String(row.id),
@@ -38,10 +39,16 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
+// GET /api/registrations/status — public. Frontend polls this to decide
+// whether to show the registration form or a "temporarily closed" message.
+router.get('/status', (_req, res) => {
+  res.json({ open: isRegistrationOpen() });
+});
+
 // POST /api/registrations — create a pending registration before payment begins.
 // payment_status is always forced to 'pending' here — only the Flutterwave
 // webhook (verified by secret hash) is allowed to promote it to 'success'.
-router.post('/', async (req, res) => {
+router.post('/', requireRegistrationOpen, async (req, res) => {
   const {
     firstName, middleName, lastName, name, dob, dccZone, assemblyName, denomination, gender,
     phone, email, state, status, occupation, qualification,
@@ -108,7 +115,7 @@ router.post('/', async (req, res) => {
 // to 'success' at once (see payment.js, which now loops over every returned row
 // to send each person their own slip email). Wrapped in a transaction so a bad
 // row can't leave a half-created group sitting in the DB.
-router.post('/bulk', async (req, res) => {
+router.post('/bulk', requireRegistrationOpen, async (req, res) => {
   const { registrants, txRef } = req.body;
 
   if (!txRef) return res.status(400).json({ error: 'txRef is required' });

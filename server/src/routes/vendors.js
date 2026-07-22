@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 const { resendAllSlips } = require('../utils/resend');
+const { requireRegistrationOpen } = require('../utils/registrationStatus');
 
 const toVendor = (row) => ({
   id: String(row.id),
@@ -46,7 +47,7 @@ const requireStaff = async (req, res, next) => {
 };
 
 // POST /api/vendors — pre-save pending vendor registration before payment
-router.post('/', async (req, res) => {
+router.post('/', requireRegistrationOpen, async (req, res) => {
   const { firstName, lastName, name, businessName, phone, email, category, uniqueCode, txRef, amount } = req.body;
 
   try {
