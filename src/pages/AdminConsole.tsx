@@ -12,6 +12,13 @@ interface Registration {
   phone: string;
   state: string;
   dob?: string;
+  dccZone?: string;
+  assemblyName?: string;
+  denomination?: string;
+  gender?: string;
+  status?: string;
+  occupation?: string;
+  qualification?: string;
   uniqueCode: string;
   paymentRef: string;
   paymentStatus: string;
@@ -497,6 +504,48 @@ const AdminConsole = () => {
     printReady.current = true;
   };
 
+  /* ── Export as spreadsheet (CSV — opens directly in Excel/Sheets/Numbers) ── */
+  const csvCell = (value: string | number | null | undefined) => {
+    const s = String(value ?? '');
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+
+  const downloadCSV = (filename: string, rows: (string | number)[][]) => {
+    const csv = rows.map(row => row.map(csvCell).join(',')).join('\r\n');
+    const BOM = '\uFEFF'; // lets Excel auto-detect UTF-8 instead of misreading accented characters
+    const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportRegistrations = (target: StateFilter) => {
+    const data = target === 'ALL'
+      ? paidRegistrations
+      : target === 'OTHER'
+        ? paidRegistrations.filter(r => isOther(r.state))
+        : paidRegistrations.filter(r => r.state === target);
+
+    const header = [
+      'Full Name', 'Phone', 'Email', 'State', 'DCC Zone / State', 'Assembly / District', 'Denomination',
+      'Gender', 'Date of Birth', 'Occupation', 'Qualification', 'Registration Code',
+      'Amount', 'Verified', 'Registered At',
+    ];
+    const rows = data.map(r => [
+      r.name, r.phone, r.email, STATE_LABELS[r.state] ?? r.state, r.dccZone ?? '', r.assemblyName ?? '', r.denomination ?? '',
+      r.gender ?? '', r.dob ?? '', r.occupation ?? '', r.qualification ?? '', r.uniqueCode,
+      r.amount, r.verified ? 'Yes' : 'No', new Date(r.registeredAt).toLocaleString('en-NG'),
+    ]);
+
+    const label = target === 'ALL' ? 'All-States' : target === 'OTHER' ? 'Other-States' : STATE_LABELS[target] ?? target;
+    downloadCSV(`registrations-${label}-${new Date().toISOString().slice(0, 10)}.csv`, [header, ...rows]);
+  };
+
   useEffect(() => { setRegPage(1); }, [filter, search, paymentFilter]);
   useEffect(() => { setVendorPage(1); }, [vendorSearch]);
 
@@ -766,6 +815,24 @@ const AdminConsole = () => {
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                      </svg>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                <p className="text-gray-400 text-xs uppercase tracking-wider mb-3 font-semibold">Export Registrations by State (Excel / CSV)</p>
+                <div className="flex flex-wrap gap-2">
+                  {([['ALL', 'All States'], ['FCT', 'FCT Only'], ['NIGER', 'Niger Only'], ['KADUNA', 'Kaduna Only'], ['OTHER', 'Other States']] as [StateFilter, string][]).map(([target, label]) => (
+                    <button
+                      key={target}
+                      onClick={() => handleExportRegistrations(target)}
+                      className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 hover:border-emerald-400 hover:bg-emerald-900/20 rounded-lg text-sm font-semibold text-gray-300 transition-all"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
                       </svg>
                       {label}
                     </button>
